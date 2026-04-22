@@ -1,0 +1,144 @@
+name: immunoorg
+description: "ImmunoOrg: The Self-Healing Autonomous Enterprise — A dual-layer RL environment combining network security simulation with organizational graph dynamics."
+version: "1.0.0"
+author: "ImmunoOrg Team"
+
+environment:
+  type: "openenv"
+  runtime: "docker"
+  entrypoint: "server.main:app"
+  port: 7860
+
+tasks:
+  - id: "level1_single_attack"
+    name: "Level 1 — Single-Point Attack"
+    description: "Detect and contain a single-vector cyber attack on one network node."
+    difficulty: 1
+    scoring:
+      type: "composite"
+      metrics:
+        - name: "threat_neutralized"
+          weight: 0.4
+          range: [0.0, 1.0]
+        - name: "response_time"
+          weight: 0.3
+          range: [0.0, 1.0]
+        - name: "false_positive_rate"
+          weight: 0.15
+          range: [0.0, 1.0]
+        - name: "reasoning_quality"
+          weight: 0.15
+          range: [0.0, 1.0]
+
+  - id: "level2_lateral_movement"
+    name: "Level 2 — Lateral Movement"
+    description: "Detect lateral movement across network tiers and reconstruct the attack timeline."
+    difficulty: 2
+    scoring:
+      type: "composite"
+      metrics:
+        - name: "threat_neutralized"
+          weight: 0.3
+        - name: "timeline_accuracy"
+          weight: 0.25
+        - name: "response_time"
+          weight: 0.2
+        - name: "belief_map_accuracy"
+          weight: 0.15
+        - name: "reasoning_quality"
+          weight: 0.1
+
+  - id: "level3_cascading_breach"
+    name: "Level 3 — Cascading Breach + Org Refactor"
+    description: "Handle cascading failures, identify organizational silos, and perform basic restructuring."
+    difficulty: 3
+    scoring:
+      type: "composite"
+      metrics:
+        - name: "threat_neutralized"
+          weight: 0.2
+        - name: "silo_identification"
+          weight: 0.2
+        - name: "org_efficiency_delta"
+          weight: 0.2
+        - name: "belief_map_accuracy"
+          weight: 0.2
+        - name: "response_time"
+          weight: 0.1
+        - name: "reasoning_quality"
+          weight: 0.1
+
+  - id: "level4_apt_campaign"
+    name: "Level 4 — APT Campaign + Total Restructure"
+    description: "Defend against an APT campaign requiring full organizational restructuring to reach immunological equilibrium."
+    difficulty: 4
+    scoring:
+      type: "composite"
+      metrics:
+        - name: "threat_neutralized"
+          weight: 0.15
+        - name: "org_restructure_quality"
+          weight: 0.2
+        - name: "belief_map_accuracy"
+          weight: 0.2
+        - name: "self_improvement_rate"
+          weight: 0.15
+        - name: "equilibrium_reached"
+          weight: 0.15
+        - name: "reasoning_quality"
+          weight: 0.15
+
+  - id: "full_cycle"
+    name: "Full Incident Cycle"
+    description: "Complete Detection → Containment → RCA → Org-Refactor → Validation cycle."
+    difficulty: 3
+    scoring:
+      type: "composite"
+      metrics:
+        - name: "phases_completed"
+          weight: 0.25
+        - name: "total_reward"
+          weight: 0.25
+        - name: "belief_map_accuracy"
+          weight: 0.2
+        - name: "org_efficiency_delta"
+          weight: 0.15
+        - name: "time_to_containment"
+          weight: 0.15
+
+action_space:
+  type: "json"
+  schema:
+    action_type:
+      type: "string"
+      enum: ["tactical", "strategic", "diagnostic"]
+    tactical_action:
+      type: "string"
+      enum: ["block_port", "isolate_node", "scan_logs", "deploy_patch", "quarantine_traffic", "escalate_alert", "restore_backup", "rotate_credentials", "enable_ids", "snapshot_forensics"]
+    strategic_action:
+      type: "string"
+      enum: ["merge_departments", "create_shortcut_edge", "update_approval_protocol", "split_department", "reassign_authority", "add_cross_functional_team", "reduce_bureaucracy", "create_incident_channel", "rewrite_policy", "establish_devsecops"]
+    diagnostic_action:
+      type: "string"
+      enum: ["query_belief_map", "correlate_failure", "trace_attack_path", "audit_permissions", "measure_org_latency", "identify_silo", "timeline_reconstruct", "vulnerability_scan"]
+    target:
+      type: "string"
+    reasoning:
+      type: "string"
+
+observation_space:
+  type: "json"
+  includes:
+    - "visible_nodes"
+    - "detected_attacks"
+    - "recent_logs"
+    - "org_nodes"
+    - "pending_approvals"
+    - "current_phase"
+    - "threat_level"
+
+themes:
+  - "multi_agent"
+  - "long_horizon_planning"
+  - "world_modeling"
+  - "self_improvement"

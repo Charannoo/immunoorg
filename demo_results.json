@@ -1,0 +1,114 @@
+{
+  "level_results": {
+    "1": {
+      "avg_reward": 7.897899059129343,
+      "avg_time": 50.0,
+      "rewards": [
+        7.20601048998426,
+        9.277019783377968,
+        7.210666904025801
+      ],
+      "times": [
+        50,
+        50,
+        50
+      ]
+    },
+    "2": {
+      "avg_reward": 14.153090839196574,
+      "avg_time": 100.0,
+      "rewards": [
+        14.151750710440794,
+        14.152464966552795,
+        14.155056840596135
+      ],
+      "times": [
+        100,
+        100,
+        100
+      ]
+    },
+    "3": {
+      "avg_reward": 9.357114105950538,
+      "avg_time": 31.0,
+      "rewards": [
+        4.875990833593333,
+        12.72050890579727,
+        10.474842578461015
+      ],
+      "times": [
+        16,
+        45,
+        32
+      ]
+    },
+    "4": {
+      "avg_reward": 7.6986854500357,
+      "avg_time": 26.0,
+      "rewards": [
+        9.273359774694082,
+        6.804708887978757,
+        7.01798768743426
+      ],
+      "times": [
+        28,
+        24,
+        26
+      ]
+    }
+  },
+  "self_improvement": [
+    {
+      "generation": 0,
+      "time_to_containment": 100,
+      "org_efficiency": 0.7787535522039699,
+      "total_reward": 14.151750710440794,
+      "mutations": 2
+    },
+    {
+      "generation": 1,
+      "time_to_containment": 70,
+      "org_efficiency": 0.7787535522039699,
+      "total_reward": 7.422666666666668,
+      "mutations": 2
+    },
+    {
+      "generation": 2,
+      "time_to_containment": 40,
+      "org_efficiency": 0.7787535522039699,
+      "total_reward": 3.7659999999999987,
+      "mutations": 2
+    },
+    {
+      "generation": 3,
+      "time_to_containment": 20,
+      "org_efficiency": 0.7787535522039699,
+      "total_reward": 2.1059999999999994,
+      "mutations": 2
+    },
+    {
+      "generation": 4,
+      "time_to_containment": 20,
+      "org_efficiency": 0.7787535522039699,
+      "total_reward": 2.1059999999999994,
+      "mutations": 1
+    }
+  ],
+  "summary": {
+    "themes_covered": [
+      "multi_agent",
+      "long_horizon",
+      "world_modeling",
+      "self_improvement"
+    ],
+    "bonus_themes": [
+      "fleet_ai_oversight",
+      "scale_ai_enterprise",
+      "mercor_scaled_rewards"
+    ],
+    "total_action_types": 28,
+    "department_agents": 8,
+    "attack_vectors": 11,
+    "difficulty_levels": 4
+  }
+}

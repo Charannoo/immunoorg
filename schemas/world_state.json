@@ -1,0 +1,184 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ImmunoOrg World State",
+  "description": "Joint state of the Technical (Network) and Organizational (Socio-Graph) layers",
+  "type": "object",
+  "required": ["technical_layer", "organizational_layer", "meta"],
+  "properties": {
+    "technical_layer": {
+      "type": "object",
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "type", "health", "compromised"],
+            "properties": {
+              "id": {"type": "string"},
+              "name": {"type": "string"},
+              "type": {"enum": ["server", "api", "database", "firewall", "endpoint", "load_balancer"]},
+              "tier": {"enum": ["web", "app", "data", "management", "dmz"]},
+              "health": {"type": "number", "minimum": 0, "maximum": 1},
+              "compromised": {"type": "boolean"},
+              "compromised_at": {"type": ["number", "null"]},
+              "attack_vector": {"type": ["string", "null"]},
+              "patched": {"type": "boolean"},
+              "isolated": {"type": "boolean"},
+              "criticality": {"type": "number", "minimum": 0, "maximum": 1},
+              "ports": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "port_number": {"type": "integer", "minimum": 1, "maximum": 65535},
+                    "protocol": {"enum": ["tcp", "udp"]},
+                    "service": {"type": "string"},
+                    "status": {"enum": ["open", "closed", "filtered", "blocked"]},
+                    "vulnerability_score": {"type": "number", "minimum": 0, "maximum": 1}
+                  }
+                }
+              },
+              "services": {"type": "array", "items": {"type": "string"}},
+              "logs": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "timestamp": {"type": "number"},
+                    "severity": {"enum": ["info", "warning", "error", "critical", "alert"]},
+                    "source": {"type": "string"},
+                    "message": {"type": "string"},
+                    "attack_indicator": {"type": "boolean"},
+                    "indicator_confidence": {"type": "number", "minimum": 0, "maximum": 1}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "source": {"type": "string"},
+              "target": {"type": "string"},
+              "bandwidth": {"type": "number"},
+              "latency": {"type": "number"},
+              "encrypted": {"type": "boolean"},
+              "anomaly_score": {"type": "number", "minimum": 0, "maximum": 1}
+            }
+          }
+        },
+        "active_attacks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {"type": "string"},
+              "vector": {"type": "string"},
+              "source_node": {"type": "string"},
+              "target_node": {"type": "string"},
+              "severity": {"type": "number", "minimum": 0, "maximum": 1},
+              "stealth": {"type": "number", "minimum": 0, "maximum": 1},
+              "contained": {"type": "boolean"},
+              "lateral_path": {"type": "array", "items": {"type": "string"}},
+              "damage_dealt": {"type": "number"}
+            }
+          }
+        }
+      }
+    },
+    "organizational_layer": {
+      "type": "object",
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "department_type", "trust_score", "response_latency"],
+            "properties": {
+              "id": {"type": "string"},
+              "name": {"type": "string"},
+              "department_type": {"enum": ["it_ops", "security", "engineering", "devops", "management", "legal", "hr", "finance"]},
+              "trust_score": {"type": "number", "minimum": 0, "maximum": 1},
+              "response_latency": {"type": "number", "minimum": 0},
+              "cooperation_threshold": {"type": "number", "minimum": 0, "maximum": 1},
+              "approval_authority": {"type": "array", "items": {"type": "string"}},
+              "budget": {"type": "number"},
+              "headcount": {"type": "integer"},
+              "technical_nodes_owned": {"type": "array", "items": {"type": "string"}},
+              "active": {"type": "boolean"},
+              "kpis": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {"type": "string"},
+                    "target_value": {"type": "number"},
+                    "current_value": {"type": "number"},
+                    "weight": {"type": "number"},
+                    "direction": {"enum": ["maximize", "minimize"]}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "source": {"type": "string"},
+              "target": {"type": "string"},
+              "latency": {"type": "number", "minimum": 0},
+              "trust": {"type": "number", "minimum": 0, "maximum": 1},
+              "formal": {"type": "boolean"},
+              "active": {"type": "boolean"}
+            }
+          }
+        },
+        "pending_approvals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {"type": "string"},
+              "action_name": {"type": "string"},
+              "requester": {"type": "string"},
+              "approver": {"type": "string"},
+              "status": {"enum": ["pending", "approved", "denied", "delayed", "escalated"]},
+              "urgency": {"type": "number", "minimum": 0, "maximum": 1}
+            }
+          }
+        }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "properties": {
+        "episode_id": {"type": "string"},
+        "current_phase": {"enum": ["detection", "containment", "rca", "refactor", "validation"]},
+        "step_count": {"type": "integer"},
+        "sim_time": {"type": "number"},
+        "difficulty_level": {"type": "integer", "minimum": 1, "maximum": 4},
+        "total_downtime": {"type": "number"},
+        "threat_level": {"type": "number", "minimum": 0, "maximum": 1},
+        "total_damage": {"type": "number"},
+        "org_chaos_score": {"type": "number", "minimum": 0, "maximum": 1},
+        "cumulative_reward": {"type": "number"},
+        "self_improvement_generation": {"type": "integer"},
+        "belief_map": {
+          "type": "object",
+          "properties": {
+            "correlations": {"type": "array"},
+            "identified_silos": {"type": "array"},
+            "bottleneck_departments": {"type": "array"},
+            "model_confidence": {"type": "number"}
+          }
+        }
+      }
+    }
+  }
+}
