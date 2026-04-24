@@ -12,7 +12,7 @@ import random
 from typing import Any
 
 from immunoorg.models import (
-    GenerationRecord, OrgEdge, OrgNode, SelfImprovementState,
+    GenerationRecord, OrgEdge, OrgNode, SelfImprovementState, PatchCandidate,
 )
 from immunoorg.org_graph import OrgGraph
 
@@ -178,4 +178,175 @@ class SelfImprovementEngine:
             "improvement_rate": self.state.improvement_rate,
             "best_reward": self.state.best_reward,
             "trajectory": self.get_improvement_trajectory(),
+        }
+
+
+# ── Time-Travel Forensics & Auto-Patch (Theme 4: Self-Improving Agents) ──────
+
+class TimeTravelForensics:
+    """
+    ImmunoOrg 2.0 — Theme 4: Self-Improving Agent Systems
+    Bonus Prize: Mercor — Scaling Token Output Rewards
+
+    After an incident is contained, reconstructs the full kill chain,
+    generates a minimal code patch, validates it adversarially, and
+    submits it as a PR. Patches are added to the training dataset,
+    closing the self-improvement loop.
+    """
+
+    def __init__(self, rng: random.Random | None = None):
+        self.rng = rng or random.Random()
+        self.patch_history: list[PatchCandidate] = []
+        self.training_dataset: list[dict[str, Any]] = []  # Patches ready for fine-tuning
+
+    def reconstruct_kill_chain(self, attack_history: list[Any], sim_time: float) -> dict[str, Any]:
+        """
+        Replay event log to build complete attack timeline.
+        Returns kill chain with confidence scores.
+        """
+        if not attack_history:
+            return {"stages": [], "confidence": 0.0, "root_cause": "unknown"}
+
+        stages = []
+        for i, event in enumerate(attack_history[-10:]):  # Last 10 events
+            stage = {
+                "order": i + 1,
+                "event": str(event)[:100],
+                "ttp": self._infer_ttp(str(event)),
+                "confidence": self.rng.uniform(0.65, 0.95),
+            }
+            stages.append(stage)
+
+        root_cause = self._identify_root_cause(stages)
+        return {
+            "stages": stages,
+            "confidence": sum(s["confidence"] for s in stages) / max(1, len(stages)),
+            "root_cause": root_cause,
+            "reconstructed_at": sim_time,
+        }
+
+    def _infer_ttp(self, event_str: str) -> str:
+        ttp_map = {
+            "sql": "T1190 — Exploit Public-Facing Application",
+            "lateral": "T1021 — Remote Services (Lateral Movement)",
+            "credential": "T1078 — Valid Accounts",
+            "privilege": "T1068 — Exploitation for Privilege Escalation",
+            "ransomware": "T1486 — Data Encrypted for Impact",
+            "phish": "T1566 — Phishing",
+        }
+        event_lower = event_str.lower()
+        for key, ttp in ttp_map.items():
+            if key in event_lower:
+                return ttp
+        return "T1059 — Command and Scripting Interpreter"
+
+    def _identify_root_cause(self, stages: list[dict]) -> str:
+        causes = [
+            "Missing input validation on API endpoint",
+            "Hardcoded credentials in source code",
+            "Overly permissive IAM policy (AdministratorAccess)",
+            "Unpatched dependency with known CVE",
+            "Missing authentication middleware on admin endpoint",
+            "S3 bucket publicly accessible due to IaC misconfiguration",
+        ]
+        return self.rng.choice(causes)
+
+    def generate_patch_candidate(
+        self,
+        root_cause: str,
+        vulnerability_id: str,
+        sim_time: float,
+    ) -> PatchCandidate:
+        """
+        Generate a minimal code patch for the identified root cause.
+        Mercor bonus: token_count is tracked; quality = 1/log2(tokens) * test_pass_rate.
+        """
+        # Simulate patch generation — in production this calls an LLM
+        patch_templates = {
+            "Missing input validation": (
+                "- def process_input(data):\n-     return db.query(data)\n"
+                "+ def process_input(data):\n+     data = sanitize(data)\n"
+                "+     if not validate_schema(data):\n+         raise ValueError('Invalid input')\n"
+                "+     return db.query(data)",
+                18,  # token count (concise = high Mercor reward)
+            ),
+            "Hardcoded credentials": (
+                "- API_KEY = 'AKIAIOSFODNN7EXAMPLE'\n"
+                "+ API_KEY = os.environ.get('API_KEY')\n"
+                "+ if not API_KEY:\n+     raise EnvironmentError('API_KEY not set')",
+                12,
+            ),
+            "Overly permissive IAM": (
+                "- Effect: Allow\n-   Action: '*'\n-   Resource: '*'\n"
+                "+ Effect: Allow\n+   Action:\n+     - s3:GetObject\n+     - s3:PutObject\n"
+                "+   Resource: 'arn:aws:s3:::app-bucket/*'",
+                20,
+            ),
+            "Missing authentication": (
+                "- @app.route('/admin')\n- def admin():\n"
+                "+ @app.route('/admin')\n+ @requires_auth\n+ def admin():\n",
+                8,
+            ),
+        }
+        # Find best matching template
+        diff, token_count = "# Generic patch", 50
+        for key, (template_diff, tokens) in patch_templates.items():
+            if any(word in root_cause for word in key.split()):
+                diff, token_count = template_diff, tokens
+                break
+
+        # Simulate test results
+        test_cases = self.rng.randint(3, 12)
+        test_pass_rate = self.rng.uniform(0.85, 1.0)
+        regressions = 0 if test_pass_rate > 0.95 else self.rng.randint(0, 1)
+
+        from immunoorg.reward import RewardCalculator
+        quality = RewardCalculator.compute_patch_quality_score(
+            token_count, test_pass_rate, regressions
+        )
+
+        patch = PatchCandidate(
+            vulnerability_id=vulnerability_id,
+            cve_reference=f"CVE-2024-{self.rng.randint(10000, 99999)}",
+            patch_diff=diff,
+            token_count=token_count,
+            lines_changed=token_count // 4,
+            test_cases_generated=test_cases,
+            test_pass_rate=test_pass_rate,
+            regression_count=regressions,
+            pr_submitted=True,
+            quality_score=quality,
+            generated_at=sim_time,
+        )
+        self.patch_history.append(patch)
+        return patch
+
+    def add_to_training_dataset(self, patch: PatchCandidate, kill_chain: dict) -> None:
+        """
+        Closes the self-improvement loop: successful patches become
+        training examples for the next model fine-tuning run.
+        """
+        if patch.quality_score >= 0.3 and patch.test_pass_rate >= 0.85:
+            record = {
+                "patch_id": patch.patch_id,
+                "root_cause": kill_chain.get("root_cause", ""),
+                "patch_diff": patch.patch_diff,
+                "quality_score": patch.quality_score,
+                "token_count": patch.token_count,
+                "test_pass_rate": patch.test_pass_rate,
+                "cve": patch.cve_reference,
+                "training_label": "patch_generation",
+            }
+            self.training_dataset.append(record)
+            patch.added_to_training = True
+
+    def get_patch_summary(self) -> dict[str, Any]:
+        if not self.patch_history:
+            return {"total_patches": 0, "avg_quality": 0.0, "training_examples": 0}
+        return {
+            "total_patches": len(self.patch_history),
+            "avg_quality": sum(p.quality_score for p in self.patch_history) / len(self.patch_history),
+            "avg_token_count": sum(p.token_count for p in self.patch_history) / len(self.patch_history),
+            "training_examples": len(self.training_dataset),
+            "best_patch": max(self.patch_history, key=lambda p: p.quality_score).patch_id,
         }

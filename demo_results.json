@@ -1,97 +1,202 @@
 {
   "level_results": {
     "1": {
-      "avg_reward": 7.897899059129343,
-      "avg_time": 50.0,
-      "rewards": [
-        7.20601048998426,
-        9.277019783377968,
-        7.210666904025801
-      ],
-      "times": [
-        50,
-        50,
-        50
-      ]
+      "random": {
+        "avg_reward": 4.405787948018237,
+        "avg_time": 50.0,
+        "rewards": [
+          2.011010489984265,
+          8.79068645004464,
+          2.415666904025805
+        ],
+        "times": [
+          50,
+          50,
+          50
+        ],
+        "best_phase": "containment",
+        "avg_efficiency_delta": 0.0
+      },
+      "heuristic": {
+        "avg_reward": 7.488010170240457,
+        "avg_time": 50.0,
+        "rewards": [
+          5.461010489984261,
+          11.88735311671131,
+          5.115666904025803
+        ],
+        "times": [
+          50,
+          50,
+          50
+        ],
+        "best_phase": "refactor",
+        "avg_efficiency_delta": 0.0
+      }
     },
     "2": {
-      "avg_reward": 14.153090839196574,
-      "avg_time": 100.0,
-      "rewards": [
-        14.151750710440794,
-        14.152464966552795,
-        14.155056840596135
-      ],
-      "times": [
-        100,
-        100,
-        100
-      ]
+      "random": {
+        "avg_reward": 7.4788686169743555,
+        "avg_time": 96.33333333333333,
+        "rewards": [
+          6.504417377107467,
+          9.573131633219456,
+          6.359056840596141
+        ],
+        "times": [
+          89,
+          100,
+          100
+        ],
+        "best_phase": "validation",
+        "avg_efficiency_delta": 0.0
+      },
+      "heuristic": {
+        "avg_reward": 10.957090839196562,
+        "avg_time": 100.0,
+        "rewards": [
+          10.955750710440782,
+          10.956464966552783,
+          10.959056840596123
+        ],
+        "times": [
+          100,
+          100,
+          100
+        ],
+        "best_phase": "refactor",
+        "avg_efficiency_delta": 0.0
+      }
     },
     "3": {
-      "avg_reward": 9.357114105950538,
-      "avg_time": 31.0,
-      "rewards": [
-        4.875990833593333,
-        12.72050890579727,
-        10.474842578461015
-      ],
-      "times": [
-        16,
-        45,
-        32
-      ]
+      "random": {
+        "avg_reward": 8.860308795705217,
+        "avg_time": 85.0,
+        "rewards": [
+          16.541407024069507,
+          3.691070117918469,
+          6.348449245127677
+        ],
+        "times": [
+          150,
+          43,
+          62
+        ],
+        "best_phase": "containment",
+        "avg_efficiency_delta": 0.026666666666666655
+      },
+      "heuristic": {
+        "avg_reward": 33.830415693252064,
+        "avg_time": 111.66666666666667,
+        "rewards": [
+          33.00856226216471,
+          8.491675572463919,
+          59.99100924512757
+        ],
+        "times": [
+          150,
+          35,
+          150
+        ],
+        "best_phase": "validation",
+        "avg_efficiency_delta": 0.039466666666666574
+      }
     },
     "4": {
-      "avg_reward": 7.6986854500357,
-      "avg_time": 26.0,
-      "rewards": [
-        9.273359774694082,
-        6.804708887978757,
-        7.01798768743426
-      ],
-      "times": [
-        28,
-        24,
-        26
-      ]
+      "random": {
+        "avg_reward": 7.941984815115049,
+        "avg_time": 104.66666666666667,
+        "rewards": [
+          2.2654924731067783,
+          11.383690792740639,
+          10.17677117949773
+        ],
+        "times": [
+          27,
+          140,
+          147
+        ],
+        "best_phase": "containment",
+        "avg_efficiency_delta": 0.04761904761904767
+      },
+      "heuristic": {
+        "avg_reward": 45.086108119958304,
+        "avg_time": 144.33333333333334,
+        "rewards": [
+          87.28366136199536,
+          39.334066030836006,
+          8.640596967043543
+        ],
+        "times": [
+          200,
+          200,
+          33
+        ],
+        "best_phase": "validation",
+        "avg_efficiency_delta": 0.025685714285714274
+      }
     }
   },
   "self_improvement": [
     {
       "generation": 0,
-      "time_to_containment": 100,
-      "org_efficiency": 0.7787535522039699,
-      "total_reward": 14.151750710440794,
-      "mutations": 2
+      "time_to_containment": 50,
+      "org_efficiency": 0.8050524499213245,
+      "total_reward": 5.461010489984261,
+      "reward_per_step": 0.10922020979968522,
+      "efficiency_delta": 0.0,
+      "mutations": 1,
+      "phase_reached": "containment"
     },
     {
       "generation": 1,
-      "time_to_containment": 70,
-      "org_efficiency": 0.7787535522039699,
-      "total_reward": 7.422666666666668,
-      "mutations": 2
+      "time_to_containment": 50,
+      "org_efficiency": 0.8050524499213245,
+      "total_reward": 5.461010489984261,
+      "reward_per_step": 0.10922020979968522,
+      "efficiency_delta": 0.0,
+      "mutations": 1,
+      "phase_reached": "containment"
     },
     {
       "generation": 2,
-      "time_to_containment": 40,
-      "org_efficiency": 0.7787535522039699,
-      "total_reward": 3.7659999999999987,
-      "mutations": 2
+      "time_to_containment": 50,
+      "org_efficiency": 0.8050524499213245,
+      "total_reward": 5.461010489984261,
+      "reward_per_step": 0.10922020979968522,
+      "efficiency_delta": 0.0,
+      "mutations": 1,
+      "phase_reached": "containment"
     },
     {
       "generation": 3,
-      "time_to_containment": 20,
-      "org_efficiency": 0.7787535522039699,
-      "total_reward": 2.1059999999999994,
-      "mutations": 2
+      "time_to_containment": 50,
+      "org_efficiency": 0.8050524499213245,
+      "total_reward": 8.901010489984273,
+      "reward_per_step": 0.17802020979968547,
+      "efficiency_delta": 0.0,
+      "mutations": 0,
+      "phase_reached": "refactor"
     },
     {
       "generation": 4,
-      "time_to_containment": 20,
-      "org_efficiency": 0.7787535522039699,
-      "total_reward": 2.1059999999999994,
-      "mutations": 1
+      "time_to_containment": 50,
+      "org_efficiency": 0.8050524499213245,
+      "total_reward": 8.901010489984273,
+      "reward_per_step": 0.17802020979968547,
+      "efficiency_delta": 0.0,
+      "mutations": 0,
+      "phase_reached": "refactor"
+    },
+    {
+      "generation": 5,
+      "time_to_containment": 50,
+      "org_efficiency": 0.8050524499213245,
+      "total_reward": 8.901010489984273,
+      "reward_per_step": 0.17802020979968547,
+      "efficiency_delta": 0.0,
+      "mutations": 0,
+      "phase_reached": "refactor"
     }
   ],
   "summary": {
@@ -101,14 +206,13 @@
       "world_modeling",
       "self_improvement"
     ],
-    "bonus_themes": [
-      "fleet_ai_oversight",
-      "scale_ai_enterprise",
-      "mercor_scaled_rewards"
-    ],
     "total_action_types": 28,
     "department_agents": 8,
     "attack_vectors": 11,
-    "difficulty_levels": 4
+    "difficulty_levels": 4,
+    "policies_compared": [
+      "random",
+      "heuristic"
+    ]
   }
 }

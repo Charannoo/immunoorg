@@ -1,6 +1,6 @@
 name: immunoorg
-description: "ImmunoOrg: The Self-Healing Autonomous Enterprise — A dual-layer RL environment combining network security simulation with organizational graph dynamics."
-version: "1.0.0"
+description: "ImmunoOrg 2.0: The Autonomous, Self-Healing Enterprise — AI DevSecOps Mesh + Multi-Agent War Room + Polymorphic Migration + Executive Context Engine. All 4 hackathon themes, all 6 bonus prizes."
+version: "2.0.0"
 author: "ImmunoOrg Team"
 
 environment:
@@ -114,17 +114,27 @@ action_space:
       enum: ["tactical", "strategic", "diagnostic"]
     tactical_action:
       type: "string"
-      enum: ["block_port", "isolate_node", "scan_logs", "deploy_patch", "quarantine_traffic", "escalate_alert", "restore_backup", "rotate_credentials", "enable_ids", "snapshot_forensics"]
+      enum: ["block_port", "isolate_node", "scan_logs", "deploy_patch", "quarantine_traffic",
+             "escalate_alert", "restore_backup", "rotate_credentials", "enable_ids",
+             "snapshot_forensics", "start_migration", "deploy_honeypot"]
     strategic_action:
       type: "string"
-      enum: ["merge_departments", "create_shortcut_edge", "update_approval_protocol", "split_department", "reassign_authority", "add_cross_functional_team", "reduce_bureaucracy", "create_incident_channel", "rewrite_policy", "establish_devsecops"]
+      enum: ["merge_departments", "create_shortcut_edge", "update_approval_protocol",
+             "split_department", "reassign_authority", "add_cross_functional_team",
+             "reduce_bureaucracy", "create_incident_channel", "rewrite_policy",
+             "establish_devsecops"]
     diagnostic_action:
       type: "string"
-      enum: ["query_belief_map", "correlate_failure", "trace_attack_path", "audit_permissions", "measure_org_latency", "identify_silo", "timeline_reconstruct", "vulnerability_scan"]
+      enum: ["query_belief_map", "correlate_failure", "trace_attack_path",
+             "audit_permissions", "measure_org_latency", "identify_silo",
+             "timeline_reconstruct", "vulnerability_scan", "check_executive_context"]
     target:
       type: "string"
     reasoning:
       type: "string"
+    parameters:
+      type: "object"
+      description: "Optional action parameters (e.g., data_residency, compliance, port_number)"
 
 observation_space:
   type: "json"
@@ -136,9 +146,64 @@ observation_space:
     - "pending_approvals"
     - "current_phase"
     - "threat_level"
+    - "war_room_transcript"        # 2.0: Latest War Room debate
+    - "pipeline_events"            # 2.0: AI DevSecOps Mesh gate events
+    - "migration_state"            # 2.0: Polymorphic migration progress
+    - "executive_context_summary"  # 2.0: Executive tasks + schema drift
 
 themes:
-  - "multi_agent"
-  - "long_horizon_planning"
-  - "world_modeling"
-  - "self_improvement"
+  - "multi_agent"          # War Room: CISO + DevOps + Architect debate
+  - "long_horizon_planning" # 50-step Polymorphic Migration
+  - "world_modeling"        # DevSecOps Mesh + Executive Context Engine
+  - "self_improvement"      # Time-Travel Forensics + Auto-Patch loop
+
+bonus_prizes:
+  halluminate:
+    description: "Multi-Actor Hallucination Detection"
+    implementation: "War Room cross-validation: agents validate each other's factual claims before execution"
+  snorkel_ai:
+    description: "Simulated Experts with Dynamic Preferences"
+    implementation: "PreferenceInjector API — judges inject mid-debate board directives forcing coalition re-formation"
+  scale_ai:
+    description: "Long Horizon IT Workflows"
+    implementation: "50-step Polymorphic Migration with constraint propagation; forgetting step-1 constraints fails step 34"
+  fleet_ai:
+    description: "Scalable Multi-Application Oversight"
+    implementation: "FleetAIOversightAgent monitors GitHub/Slack/AWS/Jira/MySQL simultaneously; atomic cross-platform lockout"
+  patronus_ai:
+    description: "Consumer Workflows with Schema Drift"
+    implementation: "ExecutiveContextEngine detects API schema changes mid-episode and adapts field mappings without dropping tasks"
+  mercor:
+    description: "Scaling Token Output Rewards"
+    implementation: "Patch quality = 1/log2(token_count) * test_pass_rate; concise patches earn exponentially higher rewards"
+
+reward_model:
+  tracks:
+    - name: "uptime"
+      weight: 0.25
+      description: "Penalizes downtime; rewards keeping systems online during threat response"
+    - name: "threat_neutralization"
+      weight: 0.25
+      description: "Rewards containing attacks, trapping attacker in honeypot, accurate world model"
+    - name: "bureaucracy_efficiency"
+      weight: 0.20
+      description: "War Room consensus speed; penalizes deadlock and infinite debate loops"
+    - name: "code_quality"
+      weight: 0.20
+      description: "Mercor-aligned: inversely scaled reward for patch token count vs test coverage"
+    - name: "pipeline_integrity"
+      weight: 0.10
+      description: "Gate 1 interception = max reward; Gate 4 = minimum; incentivizes shift-left security"
+  interactions:
+    - "Pipeline Gate 1 catch triggers 1.5x multiplier on all other tracks"
+    - "Uptime vs Threat tension: isolate action = max threat score, zero uptime score"
+    - "Self-improvement bonus: patches added to training earn persistent cross-episode signal"
+
+post_training_strategy:
+  method: "GRPO (Group Relative Policy Optimization)"
+  base_model: "Qwen/Qwen2.5-7B-Instruct"
+  training_script: "training/train_grpo.py"
+  fine_tuning_tool: "Unsloth"
+  dataset_source: "Trajectories collected from heuristic policy + War Room debate transcripts"
+  self_improvement: "Successful auto-patches added to supervised fine-tuning dataset each generation"
+  hosted_training: "HuggingFace Spaces GPU"

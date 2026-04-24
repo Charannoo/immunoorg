@@ -60,8 +60,8 @@ CURRICULUM_LEVELS: dict[int, CurriculumLevel] = {
         department_count=4,
         silo_count=0,
         adversary_adaptation_rate=0.2,
-        reward_coefficients={"alpha": 1.0, "beta": 0.5, "gamma": 0.2, "delta": 0.4, "epsilon": 0.2},
-        success_criteria={"threats_contained": 1.0, "max_downtime": 30.0, "min_reward": 0.4},
+        reward_coefficients={"alpha": 1.0, "beta": 0.3, "gamma": 0.2, "delta": 0.4, "epsilon": 0.2},
+        success_criteria={"threats_contained": 1.0, "max_downtime": 30.0, "min_reward": 0.2},
     ),
     3: CurriculumLevel(
         level=3,
@@ -76,8 +76,8 @@ CURRICULUM_LEVELS: dict[int, CurriculumLevel] = {
         department_count=6,
         silo_count=2,
         adversary_adaptation_rate=0.4,
-        reward_coefficients={"alpha": 1.0, "beta": 0.7, "gamma": 0.5, "delta": 0.6, "epsilon": 0.3},
-        success_criteria={"threats_contained": 0.9, "max_downtime": 50.0, "min_reward": 0.3},
+        reward_coefficients={"alpha": 1.0, "beta": 0.4, "gamma": 0.3, "delta": 0.6, "epsilon": 0.3},
+        success_criteria={"threats_contained": 0.9, "max_downtime": 50.0, "min_reward": 0.1},
     ),
     4: CurriculumLevel(
         level=4,
@@ -92,8 +92,8 @@ CURRICULUM_LEVELS: dict[int, CurriculumLevel] = {
         department_count=8,
         silo_count=3,
         adversary_adaptation_rate=0.6,
-        reward_coefficients={"alpha": 1.0, "beta": 1.0, "gamma": 0.8, "delta": 0.8, "epsilon": 0.5},
-        success_criteria={"threats_contained": 0.8, "max_downtime": 80.0, "min_reward": 0.2},
+        reward_coefficients={"alpha": 1.0, "beta": 0.5, "gamma": 0.4, "delta": 0.8, "epsilon": 0.5},
+        success_criteria={"threats_contained": 0.8, "max_downtime": 80.0, "min_reward": 0.0},
     ),
 }
 

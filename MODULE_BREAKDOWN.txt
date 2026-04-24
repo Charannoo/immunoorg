@@ -1,0 +1,395 @@
+﻿═════════════════════════════════════════════════════════════════════════════
+                  DETAILED MODULE BREAKDOWN & ANALYSIS
+═════════════════════════════════════════════════════════════════════════════
+
+IMMUNOORG CORE PACKAGE (2,851 LOC - 59% of total)
+═════════════════════════════════════════════════════════════════════════════
+
+1. ENVIRONMENT LAYER (Main Orchestrator)
+   ┌─ environment.py (477 LOC)
+   │  Role: Core OpenEnv environment orchestration
+   │  Imports: 22 internal/external modules
+   │  Key Classes: ImmunoOrgEnvironment
+   │  Complexity: 0.63% (3 conditionals) - EXCELLENT
+   │  Type Coverage: ✓ Full (uses typing extensively)
+   │  Tests: ✓ test_environment_reset()
+   │  Status: PRODUCTION-READY
+   │
+   │  Responsibilities:
+   │  - Episode initialization & reset
+   │  - Action execution pipeline
+   │  - State management
+   │  - Reward aggregation
+   │  - Self-improvement tracking
+
+2. DATA MODELS (Type Safety)
+   ┌─ models.py (326 LOC)
+   │  Role: Pydantic data models & enums
+   │  Type Coverage: ✓ Full (all Pydantic models)
+   │  Complexity: 0.62% (2 conditionals) - EXCELLENT
+   │  Tests: ✓ test_action_validation()
+   │  Status: PRODUCTION-READY
+   │
+   │  Defines:
+   │  - 11 Enum types (NodeType, AttackVector, etc.)
+   │  - 28 Action types (10 tactical, 10 strategic, 8 diagnostic)
+   │  - 5 Incident phases (Detection → Validation)
+   │  - Complete request/response models
+
+3. TECHNICAL LAYER (Network Simulation)
+   ├─ network_graph.py (325 LOC)
+   │  Role: Network topology modeling & simulation
+   │  Complexity: 0.62% (2 conditionals) - EXCELLENT
+   │  Type Coverage: ✓ Good (13+ type-annotated functions)
+   │  Tests: ✓ test_network_graph_generation()
+   │  Largest Methods: generate_topology() [60+ lines]
+   │  Status: PRODUCTION-READY
+   │
+   │  Features:
+   │  - 5-tier network architecture (DMZ, Web, App, Data, Mgmt)
+   │  - 6 node types (Server, API, DB, Firewall, Endpoint, LB)
+   │  - Dynamic topology based on difficulty
+   │  - Health tracking & vulnerability scoring
+   │
+   ├─ attack_engine.py (287 LOC)
+   │  Role: Adversarial attack modeling & progression
+   │  Complexity: 0.70% (2 conditionals) - EXCELLENT
+   │  Type Coverage: ✓ Good (11 type-annotated methods)
+   │  Tests: ✓ Implicitly via environment tests
+   │  Status: PRODUCTION-READY
+   │
+   │  Features:
+   │  - 11 attack vectors (SQL injection, XSS, APT, etc.)
+   │  - Adaptive attack progression
+   │  - Lateral movement simulation
+   │  - Cascading failure modeling
+   │
+   └─ permission_flow.py (198 LOC)
+      Role: Socio-technical coupling engine
+      Complexity: 1.52% (3 conditionals) - EXCELLENT
+      Type Coverage: ✓ Good (6+ return types)
+      Tests: ✓ test_permission_flow()
+      Status: PRODUCTION-READY
+      
+      Features:
+      - Route actions through organizational graph
+      - Department agent approval routing
+      - Latency-based decision delays
+      - Policy enforcement
+
+4. ORGANIZATIONAL LAYER (Socio-Graph)
+   ├─ org_graph.py (434 LOC) ⚠️ LARGEST CORE FILE
+   │  Role: Organizational structure & dynamics
+   │  Complexity: 0.92% (4 conditionals) - EXCELLENT
+   │  Type Coverage: ✓ Good (16 return types)
+   │  Tests: ✓ test_org_graph_generation()
+   │  Status: PRODUCTION-READY
+   │  
+   │  Features:
+   │  - 8 department types with KPIs
+   │  - Trust-based relationship modeling
+   │  - Approval chain management
+   │  - Communication latency simulation
+   │  - Organizational efficiency calculation
+   │
+   ├─ reward.py (257 LOC)
+   │  Role: Multi-objective reward calculation
+   │  Complexity: 0.78% (2 conditionals) - EXCELLENT
+   │  Type Coverage: ✓ Good (8+ type annotations)
+   │  Tests: ✓ test_reward_calculation()
+   │  Status: PRODUCTION-READY
+   │
+   │  Components:
+   │  - Threat neutralization score
+   │  - System downtime penalty
+   │  - Organization chaos cost
+   │  - Belief accuracy bonus
+   │  - Reasoning quality reward
+   │
+   └─ agents/department.py (211 LOC)
+      Role: Department agent decision making
+      Complexity: 0.95% (2 conditionals) - EXCELLENT
+      Type Coverage: ~ Good (5+ type annotations)
+      Tests: ✓ test_multi_agent_coordination()
+      Status: PRODUCTION-READY
+      
+      Agents (8 types):
+      - IT Operations, Security, Engineering
+      - DevOps, Management, Legal, HR, Finance
+
+5. WORLD MODELING & REASONING
+   ├─ belief_map.py (168 LOC)
+   │  Role: Causal inference & world model
+   │  Complexity: 1.20% (2 conditionals) - EXCELLENT
+   │  Type Coverage: ✓ Good (10 return types)
+   │  Tests: ✓ test_belief_map_inference()
+   │  Status: PRODUCTION-READY
+   │
+   │  Capabilities:
+   │  - Technical indicator correlation
+   │  - Silo identification
+   │  - Bottleneck detection
+   │  - Root cause analysis
+   │  - Confidence scoring
+   │
+   └─ curriculum.py (202 LOC)
+      Role: 4-tier difficulty progression
+      Complexity: 1.00% (2 conditionals) - EXCELLENT
+      Type Coverage: ✓ Good (5+ return types)
+      Tests: ✓ test_curriculum_progression()
+      Status: PRODUCTION-READY
+      
+      Tiers:
+      1. Novice: Single-point attacks (50 steps)
+      2. Intermediate: Lateral movement (100 steps)
+      3. Advanced: Cascading breach (150 steps)
+      4. Elite: APT campaign (200 steps)
+
+6. SELF-IMPROVEMENT ENGINE
+   └─ self_improvement.py (182 LOC)
+      Role: Recursive organization mutation loop
+      Complexity: 1.10% (2 conditionals) - EXCELLENT
+      Type Coverage: ✓ Good (6 return types)
+      Tests: ✓ Implicitly tested
+      Status: PRODUCTION-READY
+      
+      Features:
+      - Generational mutation tracking
+      - Org structure adaptation
+      - Difficulty scaling
+      - Equilibrium detection
+
+7. MULTI-AGENT SUBSYSTEM
+   ├─ agents/__init__.py (2 LOC)
+   │  Status: Package marker
+   │
+   ├─ agents/defender.py (158 LOC)
+   │  Role: LLM-based defender agent
+   │  Complexity: 1.27% (2 conditionals) - EXCELLENT
+   │  Type Coverage: ✗ Limited (no typing import)
+   │  Tests: ✓ Implicitly via environment tests
+   │  Status: GOOD (missing type hints)
+   │
+   └─ agents/adversary.py (51 LOC)
+      Role: Adversary strategy execution
+      Complexity: 4.00% (2 conditionals) - EXCELLENT
+      Type Coverage: ✗ Limited (no typing import)
+      Tests: ✓ Implicitly tested
+      Status: FAIR (small, missing type hints)
+
+═════════════════════════════════════════════════════════════════════════════
+
+SERVER MODULE (168 LOC - 3.5%)
+═════════════════════════════════════════════════════════════════════════════
+
+   ├─ main.py (193 LOC)
+   │  Role: FastAPI OpenEnv-compatible server
+   │  Complexity: 1.04% (2 conditionals) - EXCELLENT
+   │  Type Coverage: ✓ Good (5 type annotations)
+   │  Tests: ✓ test_api.py (endpoint integration tests)
+   │  Status: PRODUCTION-READY
+   │
+   │  Endpoints:
+   │  - POST /reset         - Initialize episode
+   │  - POST /step         - Execute action
+   │  - GET /state         - Current state
+   │  - GET /health        - Health check
+   │
+   └─ config.py (12 LOC)
+      Role: Configuration management
+      Type Coverage: ✗ No typing
+      Status: MINIMAL
+
+═════════════════════════════════════════════════════════════════════════════
+
+TRAINING MODULE (399 LOC - 8.3%)
+═════════════════════════════════════════════════════════════════════════════
+
+   ├─ train_grpo.py (322 LOC) ⚠️ UNTESTED
+   │  Role: GRPO training with Unsloth + TRL
+   │  Complexity: 1.86% (6 conditionals) - MODERATE
+   │  Type Coverage: ✓ Good (5 return types)
+   │  Tests: ✗ NOT TESTED
+   │  Status: NEEDS TESTING
+   │
+   │  Pipeline:
+   │  - Golden trajectory generation
+   │  - Reward function application
+   │  - GRPO training loop
+   │  - Model checkpointing
+   │
+   ├─ golden_trajectories.py (120 LOC)
+   │  Role: Expert trajectory synthesis
+   │  Complexity: 1.68% (2 conditionals) - EXCELLENT
+   │  Type Coverage: ✗ No typing import
+   │  Tests: ✗ NOT TESTED
+   │  Status: NEEDS TESTING
+   │
+   └─ reward_functions.py (21 LOC)
+      Role: Training-specific rewards
+      Complexity: 10.00% (2 conditionals) - GOOD (small file)
+      Status: NEEDS TESTING
+
+═════════════════════════════════════════════════════════════════════════════
+
+VISUALIZATION MODULE (406 LOC - 8.4%)
+═════════════════════════════════════════════════════════════════════════════
+
+   ├─ dashboard.py (325 LOC) 🟡 HIGHEST COMPLEXITY
+   │  Role: Gradio web UI for demo
+   │  Complexity: 2.15% (7 conditionals) - MODERATE
+   │  Type Coverage: ✗ No typing import
+   │  Tests: ✗ NOT TESTED
+   │  Status: FUNCTIONAL, NEEDS TESTING & TYPE HINTS
+   │
+   │  Features:
+   │  - Real-time environment visualization
+   │  - Network graph display
+   │  - Org graph visualization
+   │  - Episode metrics tracking
+   │
+   └─ metrics.py (167 LOC)
+      Role: Plotly evidence charts
+      Complexity: 0.60% (1 conditional) - EXCELLENT
+      Type Coverage: ✓ Good (5 return types)
+      Tests: ✗ NOT TESTED
+      Status: NEEDS TESTING
+
+═════════════════════════════════════════════════════════════════════════════
+
+ROOT MODULES (774 LOC - 16%)
+═════════════════════════════════════════════════════════════════════════════
+
+   ├─ demo_runner.py (486 LOC) 🟡 SECOND LARGEST FILE
+   │  Role: Full demo comparison (Random vs Heuristic)
+   │  Complexity: 1.65% (8 conditionals) - EXCELLENT
+   │  Type Coverage: ✓ Good (7+ return types)
+   │  Tests: Standalone demo script
+   │  Status: PRODUCTION-READY
+   │
+   ├─ generate_evidence.py (244 LOC)
+   │  Role: Evidence visualization generation
+   │  Complexity: 0.82% (2 conditionals) - EXCELLENT
+   │  Type Coverage: ✗ No typing import
+   │  Status: FUNCTIONAL
+   │
+   ├─ inference.py (168 LOC)
+   │  Role: Heuristic inference engine
+   │  Complexity: 1.20% (2 conditionals) - EXCELLENT
+   │  Type Coverage: ✓ Good (5 return types)
+   │  Status: GOOD
+   │
+   └─ client.py (21 LOC)
+      Role: API client
+      Complexity: 7.14% (2 conditionals) - GOOD (small)
+      Status: FUNCTIONAL
+
+═════════════════════════════════════════════════════════════════════════════
+
+TEST SUITE (227 LOC - 4.7%)
+═════════════════════════════════════════════════════════════════════════════
+
+   ├─ test_environment.py (226 LOC)
+   │  Test Functions: 9
+   │  Core Coverage:
+   │    ✓ Network graph generation
+   │    ✓ Org graph generation
+   │    ✓ Environment reset
+   │    ✓ Action validation
+   │    ✓ Permission flow
+   │    ✓ Reward calculation
+   │    ✓ Multi-agent coordination
+   │    ✓ Curriculum progression
+   │    ✓ Belief map inference
+   │
+   └─ test_api.py (46 LOC)
+      Test Type: Manual integration test
+      Endpoints Covered:
+        ✓ /health
+        ✓ /reset
+        ✓ /step
+        ✓ /state
+
+═════════════════════════════════════════════════════════════════════════════
+
+SCHEMA & CONFIG (Documents)
+═════════════════════════════════════════════════════════════════════════════
+
+   ├─ openenv.yaml (144 LOC)
+   │  - 5 task definitions with scoring
+   │  - Action space schema
+   │  - Observation space definition
+   │  - 4 hackathon themes covered
+   │
+   ├─ pyproject.toml (34 LOC)
+   │  - Package metadata
+   │  - Dependency specification
+   │  - Optional extras (training)
+   │
+   ├─ requirements.txt (30 LOC)
+   │  - Pinned versions
+   │  - All 19+ dependencies listed
+   │
+   └─ schemas/world_state.json (184 LOC)
+      - Complete JSON Schema definition
+      - Technical layer structure
+      - Organizational layer structure
+      - Metadata fields
+
+═════════════════════════════════════════════════════════════════════════════
+
+DOCUMENTATION (Files)
+═════════════════════════════════════════════════════════════════════════════
+
+   ├─ README.md (206 LOC)
+   │  Coverage: COMPREHENSIVE
+   │  - Project overview & innovation
+   │  - Architecture explanation
+   │  - Hackathon theme coverage
+   │  - Quick start guide
+   │  - Full project structure
+   │  - Results tables
+   │
+   ├─ PITCH_STRATEGY.md
+   │  Coverage: Strategic positioning
+   │
+   └─ DEMO_SUMMARY.md
+      Coverage: Results summary
+
+═════════════════════════════════════════════════════════════════════════════
+
+MODULE DEPENDENCY GRAPH (Simplified)
+═════════════════════════════════════════════════════════════════════════════
+
+                        ┌─────────────────────────┐
+                        │  ImmunoOrgEnvironment   │
+                        │   (477 LOC, core API)   │
+                        └────────────┬────────────┘
+                    ┌───────────┬────┴────┬──────────┐
+                    │           │         │          │
+            ┌───────▼────┐ ┌───▼─────┐ ┌─▼─────┐  ┌──▼──────────┐
+            │NetworkGraph│ │OrgGraph │ │Models │  │Permission   │
+            │(325, tech) │ │(434,org)│ │(326)  │  │Flow(198)    │
+            └───────┬────┘ └───┬─────┘ └──────┘  └──────┬───────┘
+                    │          │                        │
+            ┌───────▼──┐   ┌───▼──────┐          ┌──────▼──────┐
+            │AttackEng │   │DeptAgents│          │DepartmentAg │
+            │(287, adv)│   │(211)     │          │ents(dept.py)│
+            └──────────┘   └──────────┘          └─────────────┘
+                    │          │
+            ┌───────▼──────────▼────────┐
+            │   RewardCalculator        │
+            │   (257 LOC, scoring)      │
+            └────────────┬──────────────┘
+                         │
+            ┌────────────▼────────────────┐
+            │   BeliefMap + Curriculum   │
+            │   (168 + 202 LOC, reasoning)│
+            └────────────┬────────────────┘
+                         │
+            ┌────────────▼───────────────┐
+            │ SelfImprovementEngine      │
+            │ (182 LOC, adaptive)       │
+            └───────────────────────────┘
+
+═════════════════════════════════════════════════════════════════════════════

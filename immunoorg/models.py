@@ -73,6 +73,8 @@ class TacticalAction(str, Enum):
     ROTATE_CREDENTIALS = "rotate_credentials"
     ENABLE_IDS = "enable_ids"
     SNAPSHOT_FORENSICS = "snapshot_forensics"
+    START_MIGRATION = "start_migration"
+    DEPLOY_HONEYPOT = "deploy_honeypot"
 
 class StrategicAction(str, Enum):
     MERGE_DEPARTMENTS = "merge_departments"
@@ -89,6 +91,7 @@ class StrategicAction(str, Enum):
 class DiagnosticAction(str, Enum):
     QUERY_BELIEF_MAP = "query_belief_map"
     CORRELATE_FAILURE = "correlate_failure"
+    CHECK_EXECUTIVE_CONTEXT = "check_executive_context"
     TRACE_ATTACK_PATH = "trace_attack_path"
     AUDIT_PERMISSIONS = "audit_permissions"
     MEASURE_ORG_LATENCY = "measure_org_latency"
@@ -323,3 +326,214 @@ class SelfImprovementState(BaseModel):
     best_org_config: list[OrgNode] | None = None
     best_org_edges: list[OrgEdge] | None = None
     best_reward: float = float("-inf")
+
+
+# ============================================================
+# ImmunoOrg 2.0 — War Room Models
+# ============================================================
+
+class WarRoomPersona(str, Enum):
+    CISO = "ciso"
+    DEVOPS_LEAD = "devops_lead"
+    LEAD_ARCHITECT = "lead_architect"
+
+
+class PreferenceInjection(BaseModel):
+    """Mid-debate board directive injected by judges or simulation."""
+    id: str = Field(default_factory=lambda: f"PREF-{uuid.uuid4().hex[:6].upper()}")
+    directive: str = ""  # Human-readable directive
+    priority_override: str = ""  # e.g., "HIPAA", "UPTIME", "LEGAL_HOLD"
+    injected_at: float = 0.0
+    source: str = "board"  # board | legal | pr_crisis | regulatory
+
+
+class DebateRound(BaseModel):
+    """One round in the War Room negotiation protocol."""
+    round_number: int = 0
+    persona: WarRoomPersona = WarRoomPersona.CISO
+    proposal: str = ""
+    justification: str = ""
+    challenge_target: WarRoomPersona | None = None
+    challenge_text: str = ""
+    vote: bool = True  # approve or reject the current consensus action
+    hallucination_flags: list[str] = Field(default_factory=list)
+
+
+class DebateResult(BaseModel):
+    """Full War Room debate outcome."""
+    id: str = Field(default_factory=lambda: f"WAR-{uuid.uuid4().hex[:6].upper()}")
+    trigger_attack_id: str = ""
+    threat_level: float = 0.0
+    rounds: list[DebateRound] = Field(default_factory=list)
+    consensus_reached: bool = False
+    consensus_action: str = ""  # The agreed tactical/strategic action
+    consensus_target: str = ""
+    dissent_persona: WarRoomPersona | None = None
+    dissent_reason: str = ""
+    preference_injections: list[PreferenceInjection] = Field(default_factory=list)
+    turns_to_consensus: int = 0
+    started_at: float = 0.0
+    resolved_at: float | None = None
+
+
+# ============================================================
+# ImmunoOrg 2.0 — AI DevSecOps Mesh Models
+# ============================================================
+
+class PipelineGate(str, Enum):
+    AST_INTERCEPTOR = "gate1_ast"
+    SEMANTIC_FUZZER = "gate2_semantic"
+    TERRAFORM_SANITIZER = "gate3_terraform"
+    MICROVM_SANDBOX = "gate4_microvm"
+
+
+class PipelineEventSeverity(str, Enum):
+    BLOCKED = "blocked"
+    WARNED = "warned"
+    SANITIZED = "sanitized"
+    PASSED = "passed"
+
+
+class PipelineEvent(BaseModel):
+    """A single event in the AI DevSecOps Mesh pipeline."""
+    id: str = Field(default_factory=lambda: f"PIPE-{uuid.uuid4().hex[:6].upper()}")
+    gate: PipelineGate = PipelineGate.AST_INTERCEPTOR
+    severity: PipelineEventSeverity = PipelineEventSeverity.PASSED
+    threat_type: str = ""  # e.g., "typosquat_package", "hardcoded_credential", "open_s3_bucket"
+    payload_summary: str = ""  # Description of what was caught
+    auto_remediated: bool = False
+    remediation_description: str = ""
+    security_score: float = Field(0.0, ge=0.0, le=10.0)  # 0-10; >7 triggers War Room
+    war_room_triggered: bool = False
+    detected_at: float = 0.0
+
+
+class MeshScanResult(BaseModel):
+    """Aggregate result from running all 4 Mesh gates on a payload."""
+    payload_type: str = "code_commit"  # code_commit | pr | iac | runtime_exec
+    events: list[PipelineEvent] = Field(default_factory=list)
+    earliest_gate_caught: PipelineGate | None = None  # None = all passed
+    total_threats_caught: int = 0
+    total_auto_remediated: int = 0
+    pipeline_integrity_score: float = Field(1.0, ge=0.0, le=1.0)
+
+
+# ============================================================
+# ImmunoOrg 2.0 — Polymorphic Migration Models
+# ============================================================
+
+class MigrationPhase(str, Enum):
+    RECONNAISSANCE = "recon"
+    DECOY_DEPLOYMENT = "decoy"
+    TRAFFIC_REROUTING = "reroute"
+    REAL_ASSET_MIGRATION = "migrate"
+    HONEYTOKEN_ACTIVATION = "honeytoken"
+    FORENSIC_CAPTURE = "forensic"
+    SECURE_CUTOVER = "cutover"
+    COMPLETE = "complete"
+
+
+class HoneytokenType(str, Enum):
+    CANARY_TOKEN = "canary_token"
+    FAKE_PII = "fake_pii"
+    POISONED_CREDENTIAL = "poisoned_credential"
+    TRAPDOOR_DOCUMENT = "trapdoor_document"
+
+
+class HoneytokenActivation(BaseModel):
+    """Recorded when an attacker interacts with a honeytoken."""
+    token_id: str = Field(default_factory=lambda: f"HT-{uuid.uuid4().hex[:6].upper()}")
+    token_type: HoneytokenType = HoneytokenType.CANARY_TOKEN
+    activated_at: float = 0.0
+    attacker_ip: str = ""
+    attacker_geo: str = ""  # Simulated geolocation
+    data_accessed: str = ""
+    attribution_confidence: float = Field(0.5, ge=0.0, le=1.0)
+
+
+class MigrationStep(BaseModel):
+    step_number: int = 0
+    description: str = ""
+    phase: MigrationPhase = MigrationPhase.RECONNAISSANCE
+    completed: bool = False
+    constraint_ids: list[str] = Field(default_factory=list)  # IDs of constraints from prior steps
+    constraint_values: dict[str, Any] = Field(default_factory=dict)
+    success_metric: str = ""
+    success_value: float = 0.0
+    required_success_threshold: float = 0.8
+
+
+class MigrationWorkflowState(BaseModel):
+    """State of the 50-step polymorphic migration."""
+    workflow_id: str = Field(default_factory=lambda: f"MIG-{uuid.uuid4().hex[:6].upper()}")
+    current_phase: MigrationPhase = MigrationPhase.RECONNAISSANCE
+    current_step: int = 0
+    total_steps: int = 50
+    steps: list[MigrationStep] = Field(default_factory=list)
+    active_honeypots: list[str] = Field(default_factory=list)  # node IDs
+    honeytoken_activations: list[HoneytokenActivation] = Field(default_factory=list)
+    constraints: dict[str, Any] = Field(default_factory=dict)  # e.g., {"data_residency": "us-east-1"}
+    zero_downtime: bool = True
+    data_integrity_passed: bool = False
+    started_at: float = 0.0
+    completed_at: float | None = None
+
+
+# ============================================================
+# ImmunoOrg 2.0 — Executive Context & Schema Drift Models
+# ============================================================
+
+class SchemaDriftEvent(BaseModel):
+    """Records an API schema change detected mid-execution."""
+    event_id: str = Field(default_factory=lambda: f"DRIFT-{uuid.uuid4().hex[:6].upper()}")
+    api_name: str = ""  # e.g., "google_calendar", "marriott_booking"
+    old_field: str = ""
+    new_field: str = ""
+    change_type: str = "field_rename"  # field_rename | new_required | pagination_wrap | deprecation
+    inferred_mapping: str = ""  # Agent's inference of old→new mapping
+    inference_confidence: float = Field(0.5, ge=0.0, le=1.0)
+    gracefully_handled: bool = False
+    detected_at: float = 0.0
+
+
+class ExecutiveTask(BaseModel):
+    """A pending executive workflow task (email, calendar, travel)."""
+    task_id: str = Field(default_factory=lambda: f"EX-{uuid.uuid4().hex[:6].upper()}")
+    task_type: str = "email"  # email | calendar | travel | document
+    description: str = ""
+    priority: float = Field(0.5, ge=0.0, le=1.0)
+    deadline_sim_time: float = 100.0
+    completed: bool = False
+    blocked_by_drift: bool = False
+    api_name: str = ""
+
+
+class ExecutiveContextState(BaseModel):
+    """State of the Executive Context Engine."""
+    active_tasks: list[ExecutiveTask] = Field(default_factory=list)
+    completed_tasks: list[ExecutiveTask] = Field(default_factory=list)
+    drift_events: list[SchemaDriftEvent] = Field(default_factory=list)
+    api_schemas: dict[str, dict[str, Any]] = Field(default_factory=dict)  # api_name → schema
+    tasks_dropped: int = 0  # Tasks failed due to unhandled drift
+    adaptation_successes: int = 0
+
+
+# ============================================================
+# ImmunoOrg 2.0 — Patch Quality (Mercor Reward)
+# ============================================================
+
+class PatchCandidate(BaseModel):
+    """An auto-generated code patch from the Time-Travel Forensics loop."""
+    patch_id: str = Field(default_factory=lambda: f"PATCH-{uuid.uuid4().hex[:6].upper()}")
+    vulnerability_id: str = ""
+    cve_reference: str = ""
+    patch_diff: str = ""  # The actual code diff
+    token_count: int = 0  # Mercor: inversely rewarded
+    lines_changed: int = 0
+    test_cases_generated: int = 0
+    test_pass_rate: float = 0.0
+    regression_count: int = 0
+    pr_submitted: bool = False
+    quality_score: float = 0.0  # Computed: 1/log(tokens+1) * test_pass_rate
+    added_to_training: bool = False
+    generated_at: float = 0.0

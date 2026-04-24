@@ -122,29 +122,96 @@ def phase_appropriate_reward(completions: list[str], prompts: list[str], **kwarg
     return rewards
 
 
-def build_training_prompts() -> list[dict[str, str]]:
-    """Build training prompts from scenario templates."""
-    from immunoorg.agents.defender import get_defender_prompt
+def build_training_prompts(num_prompts: int = 200) -> list[dict[str, str]]:
+    """Generate diverse training prompts by running actual environments.
+    
+    Instead of 5 hardcoded scenarios, we run the environment across:
+    - 4 difficulty levels
+    - Multiple seeds
+    - All 5 incident phases
+    This produces genuine, diverse observations for GRPO training.
+    """
+    from immunoorg.agents.defender import get_defender_prompt, format_observation_for_llm
+    from immunoorg.environment import ImmunoOrgEnvironment
+    from immunoorg.models import (
+        ActionType, TacticalAction, DiagnosticAction, StrategicAction, ImmunoAction
+    )
+    import random
 
     system_prompt = get_defender_prompt()
-
-    scenarios = [
-        {
-            "prompt": f"{system_prompt}\n\n## Current Situation\nPhase: DETECTION\nWeb server web-server-01 shows anomalous traffic on port 3306. Threat level: 0.4.\nNetwork health: web=95%, app=100%, data=90%.\n\nWhat action should you take?",
-        },
-        {
-            "prompt": f"{system_prompt}\n\n## Current Situation\nPhase: CONTAINMENT\nConfirmed SQL injection on data-database-05 via port 3306. Lateral movement to app-api-03.\nThreat level: 0.7. Pending approval: isolate_node for data-database-05.\n\nWhat action should you take?",
-        },
-        {
-            "prompt": f"{system_prompt}\n\n## Current Situation\nPhase: ROOT CAUSE ANALYSIS\nAttack contained. SQL injection originated from unpatched database.\nSecurity and Engineering departments have NO direct communication channel.\nApproval latency was 4.5 time steps (above average).\n\nWhat action should you take?",
-        },
-        {
-            "prompt": f"{system_prompt}\n\n## Current Situation\nPhase: ORG REFACTOR\nBelief map: SQL injection correlates with missing DevSecOps (confidence: 0.8).\nSilo identified: dept-security ↔ dept-engineering.\nOrg efficiency: 52%.\n\nWhat action should you take?",
-        },
-        {
-            "prompt": f"{system_prompt}\n\n## Current Situation\nPhase: VALIDATION\nDevSecOps bridge established. Org efficiency improved to 71%.\nNo active threats. Need to verify security posture.\n\nWhat action should you take?",
-        },
-    ]
+    scenarios = []
+    
+    # Phase-appropriate actions for generating trajectories
+    phase_actions = {
+        "detection": [
+            lambda nodes: ImmunoAction(action_type=ActionType.TACTICAL, tactical_action=TacticalAction.SCAN_LOGS,
+                                       target=nodes[0].id if nodes else "", reasoning="Scanning for indicators."),
+            lambda nodes: ImmunoAction(action_type=ActionType.DIAGNOSTIC, diagnostic_action=DiagnosticAction.TRACE_ATTACK_PATH,
+                                       target="", reasoning="Tracing attack path."),
+        ],
+        "containment": [
+            lambda nodes: ImmunoAction(action_type=ActionType.TACTICAL, tactical_action=TacticalAction.ISOLATE_NODE,
+                                       target=next((n.id for n in nodes if n.compromised), nodes[0].id if nodes else ""),
+                                       reasoning="Isolating compromised node."),
+            lambda nodes: ImmunoAction(action_type=ActionType.TACTICAL, tactical_action=TacticalAction.BLOCK_PORT,
+                                       target=nodes[0].id if nodes else "", reasoning="Blocking attack port."),
+        ],
+        "rca": [
+            lambda nodes: ImmunoAction(action_type=ActionType.DIAGNOSTIC, diagnostic_action=DiagnosticAction.IDENTIFY_SILO,
+                                       target="", reasoning="Finding organizational silos."),
+            lambda nodes: ImmunoAction(action_type=ActionType.DIAGNOSTIC, diagnostic_action=DiagnosticAction.CORRELATE_FAILURE,
+                                       target="", parameters={"technical_indicator": "attack", "organizational_flaw": "no_devsecops", "confidence": 0.7},
+                                       reasoning="Correlating technical failure to org weakness."),
+        ],
+        "refactor": [
+            lambda nodes: ImmunoAction(action_type=ActionType.STRATEGIC, strategic_action=StrategicAction.ESTABLISH_DEVSECOPS,
+                                       target="dept-security", reasoning="Establishing DevSecOps."),
+            lambda nodes: ImmunoAction(action_type=ActionType.STRATEGIC, strategic_action=StrategicAction.REDUCE_BUREAUCRACY,
+                                       target="dept-management", reasoning="Reducing bureaucracy."),
+        ],
+        "validation": [
+            lambda nodes: ImmunoAction(action_type=ActionType.DIAGNOSTIC, diagnostic_action=DiagnosticAction.MEASURE_ORG_LATENCY,
+                                       target="", reasoning="Measuring org improvements."),
+            lambda nodes: ImmunoAction(action_type=ActionType.DIAGNOSTIC, diagnostic_action=DiagnosticAction.VULNERABILITY_SCAN,
+                                       target="", reasoning="Final vulnerability check."),
+        ],
+    }
+    
+    prompts_per_combo = max(1, num_prompts // (4 * 10))  # 4 difficulties * ~10 seeds
+    
+    for difficulty in [1, 2, 3, 4]:
+        for seed in range(50):
+            if len(scenarios) >= num_prompts:
+                break
+                
+            try:
+                env = ImmunoOrgEnvironment(difficulty=difficulty, seed=seed)
+                obs = env.reset()
+                
+                # Run a few steps to reach different phases
+                rng = random.Random(seed)
+                for step in range(min(15, env.state.max_steps)):
+                    # Capture observation as a training prompt
+                    obs_text = format_observation_for_llm(obs.model_dump())
+                    prompt = f"{system_prompt}\n\n## Current Observation\n{obs_text}\n\nRespond with a JSON action:"
+                    scenarios.append({"prompt": prompt})
+                    
+                    if len(scenarios) >= num_prompts:
+                        break
+                    
+                    # Take an action to advance the episode
+                    phase = obs.current_phase.value
+                    actions = phase_actions.get(phase, phase_actions["detection"])
+                    action_fn = rng.choice(actions)
+                    action = action_fn(obs.visible_nodes)
+                    
+                    obs, reward, done = env.step(action)
+                    if done:
+                        break
+            except Exception as e:
+                continue
+    
+    print(f"   Generated {len(scenarios)} training prompts across 4 difficulty levels")
     return scenarios
 
 
