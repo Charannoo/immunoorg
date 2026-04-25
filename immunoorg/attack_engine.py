@@ -3,6 +3,8 @@ Attack Engine
 =============
 Reactive adversary that generates attacks based on curriculum level,
 observes defender actions, and adapts its strategy.
+
+ImmunoOrg 2.0 - Phase 1: Supports both template-based and LLM-driven adversaries
 """
 
 from __future__ import annotations
@@ -14,6 +16,7 @@ from immunoorg.models import (
     Attack, AttackVector, LogEntry, LogSeverity, NetworkNode,
 )
 from immunoorg.network_graph import NetworkGraph
+from immunoorg.llm_adversary import LLMAdversary
 
 
 # Attack templates by difficulty level
@@ -54,9 +57,20 @@ ATTACK_TEMPLATES: dict[int, list[dict[str, Any]]] = {
 
 
 class AttackEngine:
-    """Generates and manages attacks with reactive adversary behavior."""
+    """Generates and manages attacks with reactive adversary behavior.
+    
+    Supports two modes:
+    - Template-based (default): Uses fixed attack templates
+    - LLM-driven: Uses reasoned attack planning with network analysis
+    """
 
-    def __init__(self, network: NetworkGraph, difficulty: int = 1, seed: int | None = None):
+    def __init__(
+        self,
+        network: NetworkGraph,
+        difficulty: int = 1,
+        seed: int | None = None,
+        use_llm_adversary: bool = False,
+    ):
         self.network = network
         self.difficulty = difficulty
         self.rng = random.Random(seed)
@@ -65,39 +79,65 @@ class AttackEngine:
         self.attack_history: list[dict[str, Any]] = []
         self.defender_actions_observed: list[str] = []
         self.adaptation_counter: int = 0
+        self.use_llm_adversary = use_llm_adversary
+        
+        # Initialize LLM adversary if enabled
+        self.llm_adversary: LLMAdversary | None = None
+        if use_llm_adversary:
+            self.llm_adversary = LLMAdversary(network, difficulty, seed)
 
     def generate_initial_attack(self, sim_time: float) -> Attack:
         """Generate the initial attack for an episode."""
-        templates = ATTACK_TEMPLATES.get(self.difficulty, ATTACK_TEMPLATES[1])
-        template = self.rng.choice(templates)
+        if self.use_llm_adversary and self.llm_adversary:
+            # Use LLM-driven adversary
+            attack = self.llm_adversary.generate_next_attack(sim_time)
+            target_node = attack.target_node
+            self.active_attacks.append(attack)
+            self.attack_history.append({
+                "time": sim_time,
+                "event": "initial_attack",
+                "vector": attack.vector.value,
+                "target": target_node,
+                "description": f"LLM-planned: {attack.metadata.get('rationale', 'N/A')}",
+                "plan_id": attack.metadata.get("plan_id"),
+            })
+            # Compromise the target node
+            target = self.network.get_node(target_node)
+            if target:
+                self.network.compromise_node(target_node, attack.vector, sim_time)
+            return attack
+        else:
+            # Use template-based adversary (original behavior)
+            templates = ATTACK_TEMPLATES.get(self.difficulty, ATTACK_TEMPLATES[1])
+            template = self.rng.choice(templates)
 
-        # Pick target node based on attack vector
-        target = self._select_target(template["vector"])
+            # Pick target node based on attack vector
+            target = self._select_target(template["vector"])
 
-        attack = Attack(
-            vector=template["vector"],
-            source_node="external",
-            target_node=target.id if target else "",
-            entry_point=self._find_entry_point(target, template["vector"]),
-            severity=template["severity"],
-            started_at=sim_time,
-            stealth=template["stealth"],
-            lateral_path=[target.id] if target else [],
-        )
+            attack = Attack(
+                vector=template["vector"],
+                source_node="external",
+                target_node=target.id if target else "",
+                entry_point=self._find_entry_point(target, template["vector"]),
+                severity=template["severity"],
+                started_at=sim_time,
+                stealth=template["stealth"],
+                lateral_path=[target.id] if target else [],
+            )
 
-        # Compromise the target node
-        if target:
-            self.network.compromise_node(target.id, template["vector"], sim_time)
+            # Compromise the target node
+            if target:
+                self.network.compromise_node(target.id, template["vector"], sim_time)
 
-        self.active_attacks.append(attack)
-        self.attack_history.append({
-            "time": sim_time,
-            "event": "initial_attack",
-            "vector": template["vector"].value,
-            "target": target.id if target else "unknown",
-            "description": template["description"],
-        })
-        return attack
+            self.active_attacks.append(attack)
+            self.attack_history.append({
+                "time": sim_time,
+                "event": "initial_attack",
+                "vector": template["vector"].value,
+                "target": target.id if target else "unknown",
+                "description": template["description"],
+            })
+            return attack
 
     def _select_target(self, vector: AttackVector) -> NetworkNode | None:
         """Select an appropriate target node for the attack vector."""
@@ -184,6 +224,10 @@ class AttackEngine:
         """Adversary observes what the defender does and adapts."""
         self.defender_actions_observed.append(action_name)
         self.adaptation_counter += 1
+        
+        # If using LLM adversary, also notify it
+        if self.llm_adversary:
+            self.llm_adversary.observe_defender_action(action_name)
 
     def _adapt_strategy(self) -> None:
         """Adapt attack strategy based on observed defender patterns."""
@@ -246,6 +290,12 @@ class AttackEngine:
 
     def get_total_damage(self) -> float:
         return sum(a.damage_dealt for a in self.active_attacks)
+    
+    def get_adversary_rationale(self) -> str:
+        """Get the reasoning behind the adversary's current strategy."""
+        if self.llm_adversary:
+            return self.llm_adversary.get_attack_rationale()
+        return "Template-based adversary (no reasoning available)"
 
     def generate_harder_attack(self, sim_time: float, org_weaknesses: list[str]) -> Attack:
         """Generate a harder attack for the self-improvement loop."""
