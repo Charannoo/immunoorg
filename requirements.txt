@@ -1,25 +1,10 @@
-# Core web server
-fastapi>=0.110.0
-uvicorn[standard]>=0.27.0
-pydantic>=2.6.0
-
-# Graph & Simulation
-networkx>=3.2
-numpy>=1.26.0
-
-# Visualization
-gradio>=4.20.0
-plotly>=5.18.0
-matplotlib>=3.8.0
-
-# Utilities
-python-dotenv>=1.0.0
-pyyaml>=6.0.0
-rich>=13.7.0
-requests>=2.31.0
-
-# OpenEnv client (optional, used by client.py)
-openenv-core>=0.2.3
-
-# Dev / tests
-pytest>=8.0.0
+fastapi
+uvicorn[standard]
+pydantic
+trl
+datasets
+transformers
+peft
+huggingface_hub
+accelerate
+torch
