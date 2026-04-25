@@ -94,9 +94,9 @@ def _training_secret_ok(provided: str | None) -> bool:
     expected = (os.environ.get("TRAINING_SECRET") or "").strip()
     if not expected or provided is None:
         return False
-    if len(provided) != len(expected):
-        return False
-    return secrets.compare_digest(provided, expected)
+    # Be forgiving about accidental whitespace/newlines in query param or secret UI.
+    provided_clean = provided.strip()
+    return secrets.compare_digest(provided_clean, expected)
 
 
 def _require_training_token(token: str | None) -> None:
