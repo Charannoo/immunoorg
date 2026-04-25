@@ -4,10 +4,18 @@ ImmunoOrg Core Environment
 OpenEnv Environment subclass orchestrating the dual-layer simulation.
 """
 
-from __future__ import annotations
-import json
 import random
+import uuid
+import logging
 from typing import Any
+
+try:
+    from openenv import OpenEnvEnvironment
+except ImportError:
+    # openenv package not installed — define minimal stub for HF Spaces / standalone use
+    class OpenEnvEnvironment:
+        """Minimal stub when openenv package is unavailable."""
+        pass
 
 from immunoorg.models import (
     ActionType, ApprovalStatus, Attack, AttackVector,
@@ -30,7 +38,7 @@ from immunoorg.migration_engine import MigrationEngine
 from immunoorg.executive_context import ExecutiveContextEngine
 
 
-class ImmunoOrgEnvironment:
+class ImmunoOrgEnvironment(OpenEnvEnvironment):
     """The Self-Healing Autonomous Enterprise environment."""
 
     def __init__(self, difficulty: int = 1, seed: int | None = None):

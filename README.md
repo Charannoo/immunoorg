@@ -1,3 +1,14 @@
+---
+title: ImmunoOrg 2.0 - Autonomous Self-Healing Enterprise
+emoji: 🛡️
+colorFrom: blue
+colorTo: purple
+sdk: docker
+pinned: true
+license: mit
+short_description: AI DevSecOps + War Room + 50-step MTD RL env
+---
+
 # ImmunoOrg 2.0 — The Autonomous, Self-Healing Enterprise
 ### AI DevSecOps Mesh | Multi-Agent War Room | Polymorphic Migration | Executive Context Engine
 

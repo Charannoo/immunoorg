@@ -1,5 +1,4 @@
-# Core
-openenv-core>=0.3.0
+# Core web server
 fastapi>=0.110.0
 uvicorn[standard]>=0.27.0
 pydantic>=2.6.0
@@ -7,17 +6,6 @@ pydantic>=2.6.0
 # Graph & Simulation
 networkx>=3.2
 numpy>=1.26.0
-
-# Training
-trl>=1.0.0
-transformers>=4.45.0
-datasets>=2.19.0
-accelerate>=0.30.0
-peft>=0.11.0
-torch>=2.2.0
-
-# Unsloth (install separately for GPU)
-# pip install unsloth
 
 # Visualization
 gradio>=4.20.0
@@ -28,3 +16,4 @@ matplotlib>=3.8.0
 python-dotenv>=1.0.0
 pyyaml>=6.0.0
 rich>=13.7.0
+requests>=2.31.0
