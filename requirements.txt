@@ -19,7 +19,7 @@ rich>=13.7.0
 requests>=2.31.0
 
 # OpenEnv client (optional, used by client.py)
-openenv-core>=0.3.0
+openenv-core>=0.2.3
 
 # Dev / tests
 pytest>=8.0.0
