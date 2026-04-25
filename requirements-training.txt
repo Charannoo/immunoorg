@@ -1,0 +1,10 @@
+# Heavy ML stack for GRPO on HF Spaces (GPU) or local GPU training.
+# Installed in Docker image alongside requirements.txt.
+torch>=2.2.0
+transformers>=4.45.0
+datasets>=2.19.0
+accelerate>=0.30.0
+peft>=0.11.0
+trl>=0.15.0
+huggingface_hub>=0.24.0
+safetensors>=0.4.0

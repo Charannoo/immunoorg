@@ -9,10 +9,15 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
+import subprocess
+import sys
+import threading
 import uuid
+from pathlib import Path
 from typing import Any, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
@@ -76,6 +81,32 @@ class StepResponse(BaseModel):
 
 _env: Optional[ImmunoOrgEnvironment] = None
 _episode_id: str = ""
+
+_training_lock = threading.Lock()
+_training_proc: subprocess.Popen | None = None
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parent.parent
+
+
+def _training_secret_ok(provided: str | None) -> bool:
+    expected = (os.environ.get("TRAINING_SECRET") or "").strip()
+    if not expected or provided is None:
+        return False
+    if len(provided) != len(expected):
+        return False
+    return secrets.compare_digest(provided, expected)
+
+
+def _require_training_token(token: str | None) -> None:
+    if not (os.environ.get("TRAINING_SECRET") or "").strip():
+        raise HTTPException(
+            status_code=503,
+            detail="Training trigger is disabled. Set TRAINING_SECRET in Space secrets.",
+        )
+    if not _training_secret_ok(token):
+        raise HTTPException(status_code=404, detail="Not found")
 
 
 def _get_env() -> ImmunoOrgEnvironment:
@@ -169,10 +200,114 @@ async def root():
     return {
         "name": "ImmunoOrg 2.0",
         "description": "Autonomous, Self-Healing Enterprise — OpenEnv RL Environment",
-        "endpoints": ["/health", "/reset", "/step", "/state"],
+        "endpoints": [
+            "/health",
+            "/reset",
+            "/step",
+            "/state",
+            "/admin/training/start",
+            "/admin/training/status",
+            "/admin/training/log",
+        ],
         "hf_space": "https://huggingface.co/spaces/hirann/immunoorg-2",
         "version": "2.0.0",
+        "training": "Set TRAINING_SECRET (Space secret). Start: GET /admin/training/start?token=...&smoke_test=true",
     }
+
+
+@app.get("/admin/training/start")
+async def admin_training_start(
+    token: str | None = Query(None, description="Must match TRAINING_SECRET"),
+    smoke_test: bool = Query(False),
+    model: str = Query("Qwen/Qwen2.5-0.5B-Instruct"),
+    epochs: int = Query(1, ge=1, le=20),
+):
+    """Start GRPO training in a background process (logs to persistent /data when available)."""
+    global _training_proc
+    _require_training_token(token)
+
+    with _training_lock:
+        if _training_proc is not None and _training_proc.poll() is None:
+            raise HTTPException(status_code=409, detail="Training already running")
+
+        repo = _repo_root()
+        from training.grpo_training_pipeline import log_file, training_root
+
+        out_dir = training_root() / "checkpoints" / "immunoorg-defender"
+        log_path = log_file()
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+
+        cmd = [
+            sys.executable,
+            "-u",
+            "-m",
+            "training.grpo_training_pipeline",
+            "run",
+            "--model",
+            model,
+            "--epochs",
+            str(epochs),
+            "--output-dir",
+            str(out_dir),
+        ]
+        if smoke_test:
+            cmd.append("--smoke-test")
+
+        env = os.environ.copy()
+        env["PYTHONUNBUFFERED"] = "1"
+        log_f = open(log_path, "ab", buffering=0)
+
+        _training_proc = subprocess.Popen(
+            cmd,
+            cwd=str(repo),
+            env=env,
+            stdout=log_f,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+            close_fds=True,
+        )
+
+    return {
+        "status": "started",
+        "pid": _training_proc.pid,
+        "log_file": str(log_path),
+        "smoke_test": smoke_test,
+        "model": model,
+        "epochs": epochs,
+    }
+
+
+@app.get("/admin/training/status")
+async def admin_training_status(token: str | None = Query(None)):
+    _require_training_token(token)
+    try:
+        from training.grpo_training_pipeline import status_file
+
+        p = status_file()
+        if not p.exists():
+            return {"state": "never_started"}
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.get("/admin/training/log")
+async def admin_training_log(
+    token: str | None = Query(None),
+    lines: int = Query(200, ge=1, le=5000),
+):
+    _require_training_token(token)
+    try:
+        from training.grpo_training_pipeline import log_file
+
+        p = log_file()
+        if not p.exists():
+            return PlainTextResponse("(no log yet)\n", media_type="text/plain; charset=utf-8")
+        text = p.read_text(encoding="utf-8", errors="replace").splitlines()
+        tail = "\n".join(text[-lines:]) + ("\n" if text else "")
+        return PlainTextResponse(tail, media_type="text/plain; charset=utf-8")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.post("/reset")

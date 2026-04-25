@@ -11,6 +11,7 @@ import json
 import os
 import re
 import sys
+from argparse import Namespace
 from typing import Any
 
 # Add parent dir to path
@@ -215,7 +216,7 @@ def build_training_prompts(num_prompts: int = 200) -> list[dict[str, str]]:
     return scenarios
 
 
-def main():
+def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Train ImmunoOrg defender agent with GRPO")
     parser.add_argument("--smoke-test", action="store_true", help="Quick test with 2 steps")
     parser.add_argument("--warm-start", action="store_true", help="Warm-start using golden trajectories (SFT)")
@@ -226,9 +227,31 @@ def main():
     parser.add_argument("--lr", type=float, default=5e-6, help="Learning rate")
     parser.add_argument("--num-generations", type=int, default=4, help="GRPO generations per prompt")
     parser.add_argument("--max-completion-length", type=int, default=1024, help="Max completion tokens")
-    args = parser.parse_args()
+    return parser
 
 
+def parse_train_args(argv: list[str] | None = None) -> Namespace:
+    return build_arg_parser().parse_args(argv)
+
+
+def _maybe_push_to_hub(output_dir: str) -> None:
+    """If HF_TRAINING_PUSH_REPO_ID is set, upload ``output_dir`` to the Hub (uses HF_TOKEN)."""
+    repo_id = os.environ.get("HF_TRAINING_PUSH_REPO_ID", "").strip()
+    if not repo_id:
+        return
+    token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_HUB_TOKEN")
+    if not token:
+        print("HF_TRAINING_PUSH_REPO_ID is set but HF_TOKEN is missing; skipping Hub upload.")
+        return
+    from huggingface_hub import HfApi
+
+    api = HfApi(token=token)
+    api.create_repo(repo_id, repo_type="model", exist_ok=True)
+    api.upload_folder(folder_path=output_dir, repo_id=repo_id, repo_type="model")
+    print(f"Uploaded training artifacts to https://huggingface.co/{repo_id}")
+
+
+def run_grpo_training(args: Namespace) -> None:
     print("=" * 60)
     print("ImmunoOrg GRPO Training Pipeline")
     print("=" * 60)
@@ -251,7 +274,7 @@ def main():
         sys.exit(1)
 
     # 1. Load model
-    print("\nLoading model: {args.model}")
+    print(f"\nLoading model: {args.model}")
     if HAS_UNSLOTH:
         model, tokenizer = FastLanguageModel.from_pretrained(
             args.model,
@@ -312,9 +335,15 @@ def main():
 
     # 6. Save
     print(f"\nSaving model to {args.output_dir}")
+    os.makedirs(args.output_dir, exist_ok=True)
     trainer.save_model(args.output_dir)
     tokenizer.save_pretrained(args.output_dir)
     print("Training complete!")
+    _maybe_push_to_hub(args.output_dir)
+
+
+def main() -> None:
+    run_grpo_training(parse_train_args())
 
 
 if __name__ == "__main__":

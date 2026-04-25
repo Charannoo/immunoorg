@@ -12,12 +12,19 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+COPY requirements-training.txt .
+RUN pip install --no-cache-dir -r requirements-training.txt
+
 # Copy all project files
 COPY immunoorg/ ./immunoorg/
 COPY server/ ./server/
+COPY training/ ./training/
 COPY visualization/ ./visualization/
 COPY openenv.yaml .
 COPY README.md .
+
+# HF persistent volume mount point (when persistence is enabled)
+RUN mkdir -p /data && chown 1000:1000 /data
 
 # Create a non-root user (HF Spaces requirement)
 RUN useradd -m -u 1000 user

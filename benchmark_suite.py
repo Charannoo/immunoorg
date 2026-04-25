@@ -20,12 +20,12 @@ class BenchmarkSuite:
         self.results = defaultdict(list)
 
     
-    def run_benchmark(self) -> dict:
+    def run_benchmark(self, model_path: str | None = None) -> dict:
         """Run benchmark across all agents and difficulty levels."""
         agents = {
             "random": RandomAgent,
             "heuristic": HeuristicAgent,
-            "llm": ImmunoDefenderAgent,
+            "llm": (lambda seed: ImmunoDefenderAgent(seed=seed, model_path=model_path)),
         }
         
         difficulties = [1, 2]  # Keep it fast: levels 1-2 only
@@ -37,18 +37,18 @@ class BenchmarkSuite:
         
         for difficulty in difficulties:
             print(f"\n=== Difficulty Level {difficulty} ===")
-            for agent_name, agent_class in agents.items():
+            for agent_name, agent_init in agents.items():
                 print(f"  {agent_name.upper()}...", end="", flush=True)
-                self.run_agent_episodes(agent_name, agent_class, difficulty)
+                self.run_agent_episodes(agent_name, agent_init, difficulty)
                 print(" DONE")
         
         return self._aggregate_results()
     
-    def run_agent_episodes(self, agent_name: str, agent_class, difficulty: int):
+    def run_agent_episodes(self, agent_name: str, agent_init, difficulty: int):
         """Run n episodes for a given agent at a given difficulty."""
         for ep in range(self.num_episodes):
             env = ImmunoOrgEnvironment(difficulty=difficulty, seed=ep)
-            agent = agent_class(seed=ep)
+            agent = agent_init(seed=ep)
             
             obs = env.reset()
             terminated = False
@@ -133,10 +133,11 @@ if __name__ == "__main__":
     import sys
     
     num_episodes = int(sys.argv[1]) if len(sys.argv) > 1 else 100
+    model_path = sys.argv[2] if len(sys.argv) > 2 else None
     
     suite = BenchmarkSuite(num_episodes=num_episodes)
     start = time.time()
-    suite.run_benchmark()
+    suite.run_benchmark(model_path=model_path)
     elapsed = time.time() - start
     
     suite.print_summary()
