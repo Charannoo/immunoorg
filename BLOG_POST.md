@@ -135,7 +135,7 @@ python visualization/dashboard.py
 python generate_evidence_2.py
 ```
 
-**HuggingFace Space**: `https://huggingface.co/spaces/YOUR_USERNAME/immunoorg`  
+**HuggingFace Space**: https://huggingface.co/spaces/hirann/immunoorg-2
 **Training Notebook**: `ImmunoOrg_Training_Colab.ipynb`
 
 ---

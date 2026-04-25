@@ -15,7 +15,7 @@
 
 | Resource | Link |
 |---|---|
-| **HuggingFace Space** | https://huggingface.co/spaces/YOUR_HF_USERNAME/immunoorg-2 |
+| **HuggingFace Space** | https://huggingface.co/spaces/hirann/immunoorg-2 |
 | **Training Colab** | [ImmunoOrg_Training_Colab.ipynb](./ImmunoOrg_Training_Colab.ipynb) |
 | **Blog Post** | [BLOG_POST.md](./BLOG_POST.md) |
 | **Submission Checklist** | [SUBMISSION_CHECKLIST.md](./SUBMISSION_CHECKLIST.md) |
