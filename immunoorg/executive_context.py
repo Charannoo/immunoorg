@@ -1,6 +1,6 @@
 """
-Executive Context Engine with Schema Drift
-==========================================
+Executive Context Engine with Real API Mocking
+==============================================
 ImmunoOrg 2.0 — Theme 3.2: World Modeling (Personalized Tasks)
 Bonus Prize: Patronus AI — Consumer Workflows with Schema Drift
 
@@ -8,8 +8,8 @@ Simulates the executive's digital workflow running in parallel with the
 active threat response. The defender agent must maintain two mental models
 simultaneously: the threat response model AND the executive context model.
 
-Schema Drift (Patronus AI bonus): Mid-episode API contract changes
-force the agent to detect, infer mappings, and adapt on the fly.
+Phase 3: Integrated with realistic REST/GraphQL mock APIs.
+Agents must use tool-calling to interact with actual API endpoints.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from typing import Any
 from immunoorg.models import (
     ExecutiveTask, ExecutiveContextState, SchemaDriftEvent,
 )
+from immunoorg.mock_api_server import RealisticAPIMockServer
 
 
 # ── Simulated API Schemas ─────────────────────────────────────────────────
@@ -96,20 +97,29 @@ class ExecutiveContextEngine:
     """
     Maintains the executive's digital workflow in parallel with threat response.
     Injects API schema drift events at configured simulation steps.
+    
+    Phase 3: Integrated with realistic REST/GraphQL mock APIs.
 
     The agent earns reward for:
     - Completing executive tasks despite ongoing incident
     - Detecting and adapting to schema drift without dropping tasks
     - Not confusing threat-response actions with executive workflow actions
+    - Making correct REST/GraphQL API calls to complete tasks
     """
 
-    def __init__(self, rng: random.Random | None = None):
+    def __init__(self, rng: random.Random | None = None, enable_mock_apis: bool = True):
         self.rng = rng or random.Random()
         self._state = ExecutiveContextState(
             api_schemas={k: dict(v) for k, v in API_SCHEMAS_V1.items()}
         )
         self._drift_queue = list(DRIFT_EVENTS)
         self._tasks_initialized = False
+        
+        # Phase 3: Initialize mock API server
+        self.enable_mock_apis = enable_mock_apis
+        self.mock_api_server: RealisticAPIMockServer | None = None
+        if enable_mock_apis:
+            self.mock_api_server = RealisticAPIMockServer(seed=None)
 
     @property
     def state(self) -> ExecutiveContextState:
@@ -241,6 +251,7 @@ class ExecutiveContextEngine:
         Patronus AI bonus score:
         - Task completion rate despite drift
         - Drift adaptation success rate
+        - API call accuracy (Phase 3)
         """
         total_tasks = (
             len(self._state.active_tasks)
@@ -256,3 +267,37 @@ class ExecutiveContextEngine:
             if total_drifts > 0 else 1.0
         )
         return (completion_rate * 0.5 + adaptation_rate * 0.5)
+    
+    def handle_api_call(
+        self,
+        task_id: str,
+        api_type: str,  # "rest" or "graphql"
+        endpoint_or_query: str,
+        data: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Agent attempts to call an API to complete an executive task.
+        Returns the API response.
+        """
+        if not self.mock_api_server:
+            return {"error": "Mock API server not enabled", "status": 500}
+        
+        data = data or {}
+        
+        try:
+            if api_type == "rest":
+                response = self.mock_api_server.call_rest(endpoint_or_query, data)
+            elif api_type == "graphql":
+                response = self.mock_api_server.call_graphql(endpoint_or_query)
+            else:
+                return {"error": f"Unknown API type: {api_type}", "status": 400}
+            
+            return response.to_dict()
+        except Exception as e:
+            return {"error": str(e), "status": 500}
+    
+    def get_api_status(self) -> dict[str, Any]:
+        """Get the current status of all API operations."""
+        if self.mock_api_server:
+            return self.mock_api_server.get_api_status_report()
+        return {"enabled": False}
