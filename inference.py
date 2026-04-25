@@ -43,9 +43,9 @@ def run_episode(task_id: str = "level1_single_attack", difficulty: int = 1) -> d
 
     total_reward = 0.0
     step = 0
-    terminated = False
+    done = False
 
-    while not terminated and step < 200:
+    while not done and step < 200:
         # Simple rule-based agent
         action = decide_action(obs, step)
 
@@ -56,7 +56,7 @@ def run_episode(task_id: str = "level1_single_attack", difficulty: int = 1) -> d
 
         obs = result["observation"]
         reward = result["reward"]
-        terminated = result["terminated"]
+        done = result.get("done", result.get("terminated", False))
         total_reward += reward
         step += 1
 

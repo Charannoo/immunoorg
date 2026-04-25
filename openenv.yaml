@@ -1,209 +1,58 @@
-name: immunoorg
-description: "ImmunoOrg 2.0: The Autonomous, Self-Healing Enterprise — AI DevSecOps Mesh + Multi-Agent War Room + Polymorphic Migration + Executive Context Engine. All 4 hackathon themes, all 6 bonus prizes."
-version: "2.0.0"
-author: "ImmunoOrg Team"
-
+name: ImmunoOrg
+version: 2.0.0
+description: An RL environment where an LLM agent learns to defend an organization from internal threats by strategically restructuring it, simulating a biological immune response.
+entry_point: immunoorg.environment:ImmunoOrgEnvironment
+category: Cybersecurity/Organizational-Management
 environment:
-  type: "openenv"
-  runtime: "docker"
-  entrypoint: "server.main:app"
-  port: 7860
-
+  type: openenv
+  interface: reset/step/state
 tasks:
-  - id: "level1_single_attack"
-    name: "Level 1 — Single-Point Attack"
-    description: "Detect and contain a single-vector cyber attack on one network node."
-    difficulty: 1
-    scoring:
-      type: "composite"
-      metrics:
-        - name: "threat_neutralized"
-          weight: 0.4
-          range: [0.0, 1.0]
-        - name: "response_time"
-          weight: 0.3
-          range: [0.0, 1.0]
-        - name: "false_positive_rate"
-          weight: 0.15
-          range: [0.0, 1.0]
-        - name: "reasoning_quality"
-          weight: 0.15
-          range: [0.0, 1.0]
-
-  - id: "level2_lateral_movement"
-    name: "Level 2 — Lateral Movement"
-    description: "Detect lateral movement across network tiers and reconstruct the attack timeline."
-    difficulty: 2
-    scoring:
-      type: "composite"
-      metrics:
-        - name: "threat_neutralized"
-          weight: 0.3
-        - name: "timeline_accuracy"
-          weight: 0.25
-        - name: "response_time"
-          weight: 0.2
-        - name: "belief_map_accuracy"
-          weight: 0.15
-        - name: "reasoning_quality"
-          weight: 0.1
-
-  - id: "level3_cascading_breach"
-    name: "Level 3 — Cascading Breach + Org Refactor"
-    description: "Handle cascading failures, identify organizational silos, and perform basic restructuring."
-    difficulty: 3
-    scoring:
-      type: "composite"
-      metrics:
-        - name: "threat_neutralized"
-          weight: 0.2
-        - name: "silo_identification"
-          weight: 0.2
-        - name: "org_efficiency_delta"
-          weight: 0.2
-        - name: "belief_map_accuracy"
-          weight: 0.2
-        - name: "response_time"
-          weight: 0.1
-        - name: "reasoning_quality"
-          weight: 0.1
-
-  - id: "level4_apt_campaign"
-    name: "Level 4 — APT Campaign + Total Restructure"
-    description: "Defend against an APT campaign requiring full organizational restructuring to reach immunological equilibrium."
-    difficulty: 4
-    scoring:
-      type: "composite"
-      metrics:
-        - name: "threat_neutralized"
-          weight: 0.15
-        - name: "org_restructure_quality"
-          weight: 0.2
-        - name: "belief_map_accuracy"
-          weight: 0.2
-        - name: "self_improvement_rate"
-          weight: 0.15
-        - name: "equilibrium_reached"
-          weight: 0.15
-        - name: "reasoning_quality"
-          weight: 0.15
-
-  - id: "full_cycle"
-    name: "Full Incident Cycle"
-    description: "Complete Detection → Containment → RCA → Org-Refactor → Validation cycle."
-    difficulty: 3
-    scoring:
-      type: "composite"
-      metrics:
-        - name: "phases_completed"
-          weight: 0.25
-        - name: "total_reward"
-          weight: 0.25
-        - name: "belief_map_accuracy"
-          weight: 0.2
-        - name: "org_efficiency_delta"
-          weight: 0.15
-        - name: "time_to_containment"
-          weight: 0.15
-
+  - id: level1_single_attack
+    description: Contain one moderate-severity incident with minimal downtime.
+  - id: curriculum_levels_1_to_4
+    description: Multi-difficulty incident response curriculum with escalating complexity.
 action_space:
-  type: "json"
+  format: json
   schema:
-    action_type:
-      type: "string"
-      enum: ["tactical", "strategic", "diagnostic"]
-    tactical_action:
-      type: "string"
-      enum: ["block_port", "isolate_node", "scan_logs", "deploy_patch", "quarantine_traffic",
-             "escalate_alert", "restore_backup", "rotate_credentials", "enable_ids",
-             "snapshot_forensics", "start_migration", "deploy_honeypot"]
-    strategic_action:
-      type: "string"
-      enum: ["merge_departments", "create_shortcut_edge", "update_approval_protocol",
-             "split_department", "reassign_authority", "add_cross_functional_team",
-             "reduce_bureaucracy", "create_incident_channel", "rewrite_policy",
-             "establish_devsecops"]
-    diagnostic_action:
-      type: "string"
-      enum: ["query_belief_map", "correlate_failure", "trace_attack_path",
-             "audit_permissions", "measure_org_latency", "identify_silo",
-             "timeline_reconstruct", "vulnerability_scan", "check_executive_context"]
-    target:
-      type: "string"
-    reasoning:
-      type: "string"
-    parameters:
-      type: "object"
-      description: "Optional action parameters (e.g., data_residency, compliance, port_number)"
-
+    type: object
+    required: [action_type]
+    properties:
+      action_type:
+        type: string
+        enum: [tactical, strategic, diagnostic]
+      tactical_action:
+        type: string
+        enum: [block_port, isolate_node, scan_logs, deploy_patch, quarantine_traffic, escalate_alert, restore_backup, rotate_credentials, enable_ids, snapshot_forensics, start_migration, deploy_honeypot]
+      strategic_action:
+        type: string
+        enum: [merge_departments, create_shortcut_edge, update_approval_protocol, split_department, reassign_authority, add_cross_functional_team, reduce_bureaucracy, create_incident_channel, rewrite_policy, establish_devsecops]
+      diagnostic_action:
+        type: string
+        enum: [query_belief_map, correlate_failure, check_executive_context, trace_attack_path, audit_permissions, measure_org_latency, identify_silo, timeline_reconstruct, vulnerability_scan]
+      target:
+        type: string
+      secondary_target:
+        type: string
+      parameters:
+        type: object
+      reasoning:
+        type: string
 observation_space:
-  type: "json"
-  includes:
-    - "visible_nodes"
-    - "detected_attacks"
-    - "recent_logs"
-    - "org_nodes"
-    - "pending_approvals"
-    - "current_phase"
-    - "threat_level"
-    - "war_room_transcript"        # 2.0: Latest War Room debate
-    - "pipeline_events"            # 2.0: AI DevSecOps Mesh gate events
-    - "migration_state"            # 2.0: Polymorphic migration progress
-    - "executive_context_summary"  # 2.0: Executive tasks + schema drift
-
-themes:
-  - "multi_agent"          # War Room: CISO + DevOps + Architect debate
-  - "long_horizon_planning" # 50-step Polymorphic Migration
-  - "world_modeling"        # DevSecOps Mesh + Executive Context Engine
-  - "self_improvement"      # Time-Travel Forensics + Auto-Patch loop
-
-bonus_prizes:
-  halluminate:
-    description: "Multi-Actor Hallucination Detection"
-    implementation: "War Room cross-validation: agents validate each other's factual claims before execution"
-  snorkel_ai:
-    description: "Simulated Experts with Dynamic Preferences"
-    implementation: "PreferenceInjector API — judges inject mid-debate board directives forcing coalition re-formation"
-  scale_ai:
-    description: "Long Horizon IT Workflows"
-    implementation: "50-step Polymorphic Migration with constraint propagation; forgetting step-1 constraints fails step 34"
-  fleet_ai:
-    description: "Scalable Multi-Application Oversight"
-    implementation: "FleetAIOversightAgent monitors GitHub/Slack/AWS/Jira/MySQL simultaneously; atomic cross-platform lockout"
-  patronus_ai:
-    description: "Consumer Workflows with Schema Drift"
-    implementation: "ExecutiveContextEngine detects API schema changes mid-episode and adapts field mappings without dropping tasks"
-  mercor:
-    description: "Scaling Token Output Rewards"
-    implementation: "Patch quality = 1/log2(token_count) * test_pass_rate; concise patches earn exponentially higher rewards"
-
-reward_model:
-  tracks:
-    - name: "uptime"
-      weight: 0.25
-      description: "Penalizes downtime; rewards keeping systems online during threat response"
-    - name: "threat_neutralization"
-      weight: 0.25
-      description: "Rewards containing attacks, trapping attacker in honeypot, accurate world model"
-    - name: "bureaucracy_efficiency"
-      weight: 0.20
-      description: "War Room consensus speed; penalizes deadlock and infinite debate loops"
-    - name: "code_quality"
-      weight: 0.20
-      description: "Mercor-aligned: inversely scaled reward for patch token count vs test coverage"
-    - name: "pipeline_integrity"
-      weight: 0.10
-      description: "Gate 1 interception = max reward; Gate 4 = minimum; incentivizes shift-left security"
-  interactions:
-    - "Pipeline Gate 1 catch triggers 1.5x multiplier on all other tracks"
-    - "Uptime vs Threat tension: isolate action = max threat score, zero uptime score"
-    - "Self-improvement bonus: patches added to training earn persistent cross-episode signal"
-
-post_training_strategy:
-  method: "GRPO (Group Relative Policy Optimization)"
-  base_model: "Qwen/Qwen2.5-7B-Instruct"
-  training_script: "training/train_grpo.py"
-  fine_tuning_tool: "Unsloth"
-  dataset_source: "Trajectories collected from heuristic policy + War Room debate transcripts"
-  self_improvement: "Successful auto-patches added to supervised fine-tuning dataset each generation"
-  hosted_training: "HuggingFace Spaces GPU"
+  format: json
+  fields:
+    - current_phase
+    - step_count
+    - sim_time
+    - threat_level
+    - system_downtime
+    - visible_nodes
+    - detected_attacks
+    - recent_logs
+    - org_nodes
+    - pending_approvals
+metrics:
+  - time_to_containment
+  - total_reward
+  - org_efficiency
+  - threats_contained_ratio
+tags: [LLM, RL, Cybersecurity, Org-Design, Self-Improvement]

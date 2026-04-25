@@ -65,7 +65,7 @@ class PermissionFlowEngine:
         self.trust_engine = None
         if enable_dynamic_trust:
             from immunoorg.org_dynamics import DynamicOrgDynamicsEngine
-            self.trust_engine = DynamicOrgDynamicsEngine(seed=seed)
+            self.trust_engine = DynamicOrgDynamicsEngine(rng=random.Random(seed))
 
     def needs_approval(self, action_name: str) -> bool:
         """Check if an action needs organizational approval."""

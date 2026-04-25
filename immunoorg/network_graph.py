@@ -150,6 +150,13 @@ class NetworkGraph:
     def get_all_nodes(self) -> list[NetworkNode]:
         return list(self.nodes.values())
 
+    def get_all_node_ids(self) -> list[str]:
+        """Convenience helper: return all node IDs.
+        
+        Some higher-level modules/tests operate on IDs rather than full node objects.
+        """
+        return list(self.nodes.keys())
+
     def get_all_edges(self) -> list[NetworkEdge]:
         return list(self.edges)
 

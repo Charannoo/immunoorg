@@ -185,10 +185,17 @@ class MockRESTAPI:
                 )
         
         # Generate response
-        response_data = {"id": self._generate_id(endpoint_name)}
+        # Use endpoint.response_fields as the contract, and populate IDs even if
+        # the caller didn't provide them (real APIs generate IDs server-side).
+        response_data: dict[str, Any] = {}
         for field in endpoint.response_fields:
             if field in data:
                 response_data[field] = data[field]
+                continue
+            if field.lower().endswith("id"):
+                response_data[field] = self._generate_id(endpoint_name)
+            elif field.lower() == "status":
+                response_data[field] = "confirmed"
         
         response = APIResponse(
             status=200,
@@ -353,11 +360,11 @@ class RealisticAPIMockServer:
     ) -> APIResponse:
         """Call a REST endpoint."""
         token = self.auth_token if use_auth else ""
-        return self.rest.call_endpoint(endpoint, data, token)
+        return self.rest.call_endpoint(endpoint, data, token).to_dict()
     
     def call_graphql(self, query: str) -> APIResponse:
         """Call the GraphQL endpoint."""
-        return self.graphql.execute_query(query)
+        return self.graphql.execute_query(query).to_dict()
     
     def get_api_status_report(self) -> dict[str, Any]:
         """Get status of all API operations."""

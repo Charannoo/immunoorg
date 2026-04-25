@@ -32,7 +32,7 @@ EXPOSE 7860
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:7860/health')" || exit 1
+    CMD python -c "import os,requests; p=os.environ.get('PORT','7860'); requests.get(f'http://localhost:{p}/health')" || exit 1
 
 # Run the FastAPI server
-CMD ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["sh", "-lc", "uvicorn server.main:app --host 0.0.0.0 --port ${PORT:-7860}"]

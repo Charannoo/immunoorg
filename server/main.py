@@ -1,189 +1,233 @@
 """
-ImmunoOrg OpenEnv Server
-========================
-Properly subclasses openenv.core.Environment and uses create_fastapi_app.
+ImmunoOrg 2.0 — FastAPI OpenEnv Server
+=======================================
+Implements the OpenEnv REST API without requiring the openenv package.
+Endpoints: GET /health  POST /reset  POST /step  GET /state
 """
 
 from __future__ import annotations
 
 import json
 import os
+import uuid
 from typing import Any, Optional
 
-from openenv.core import Environment, Action, Observation, State, create_fastapi_app
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
+from pydantic import BaseModel
 
 from immunoorg.models import (
-    ActionType, TacticalAction, StrategicAction, DiagnosticAction,
-    IncidentPhase, NetworkNode, NetworkEdge, OrgNode, OrgEdge,
-    Attack, ApprovalRequest, LogEntry,
+    ActionType, TacticalAction, StrategicAction, DiagnosticAction, ImmunoAction,
 )
 from immunoorg.environment import ImmunoOrgEnvironment
 
 
-# === OpenEnv-compatible Action/Observation ===
+# ─── Request / Response schemas ──────────────────────────────────────────────
 
-class ImmunoOrgAction(Action):
-    """OpenEnv Action subclass."""
+class ResetRequest(BaseModel):
+    seed: Optional[int] = None
+    difficulty: int = 1
+    task: Optional[str] = None
+
+
+class ImmunoOrgAction(BaseModel):
     action_type: str = "tactical"
-    tactical_action: str | None = None
-    strategic_action: str | None = None
-    diagnostic_action: str | None = None
+    tactical_action: Optional[str] = None
+    strategic_action: Optional[str] = None
+    diagnostic_action: Optional[str] = None
     target: str = ""
-    secondary_target: str | None = None
+    secondary_target: Optional[str] = None
     parameters: dict[str, Any] = {}
     reasoning: str = ""
 
+class StepEnvelope(BaseModel):
+    """OpenEnv-style request body: { action: {...} }"""
+    action: ImmunoOrgAction
 
-class ImmunoOrgObservation(Observation):
-    """OpenEnv Observation subclass. Inherits done, reward, metadata."""
-    current_phase: str = "detection"
-    step_count: int = 0
-    sim_time: float = 0.0
-    threat_level: float = 0.0
-    system_downtime: float = 0.0
-    action_result: str = ""
-    action_success: bool = True
-    visible_nodes: list[dict[str, Any]] = []
-    detected_attacks: list[dict[str, Any]] = []
-    recent_logs: list[dict[str, Any]] = []
-    network_health_summary: dict[str, float] = {}
-    org_nodes: list[dict[str, Any]] = []
-    pending_approvals: list[dict[str, Any]] = []
-    belief_map_feedback: str = ""
-    alerts: list[str] = []
+class ImmunoOrgObservation(BaseModel):
+    """OpenEnv-style observation payload returned in responses."""
+    done: bool
+    episode_id: str
+    current_phase: str
+    step_count: int
+    sim_time: float
+    threat_level: float
+    system_downtime: float
+    action_result: str
+    action_success: bool
+    visible_nodes: list[dict[str, Any]]
+    detected_attacks: list[dict[str, Any]]
+    recent_logs: list[dict[str, Any]]
+    network_health_summary: dict[str, Any]
+    org_nodes: list[dict[str, Any]]
+    pending_approvals: list[dict[str, Any]]
+    belief_map_feedback: str
+    alerts: list[str]
 
-
-class ImmunoOrgState(State):
-    """OpenEnv State subclass. Inherits episode_id, step_count."""
-    difficulty_level: int = 1
-    current_phase: str = "detection"
-    threat_level: float = 0.0
-    total_downtime: float = 0.0
-    total_damage: float = 0.0
-    org_chaos_score: float = 0.0
-    cumulative_reward: float = 0.0
-    active_attacks: int = 0
-    contained_attacks: int = 0
-    org_changes_made: int = 0
-    self_improvement_generation: int = 0
-    termination_reason: str = ""
+class StepResponse(BaseModel):
+    observation: ImmunoOrgObservation
+    reward: float
+    done: bool
+    info: dict[str, Any]
 
 
-# === OpenEnv Environment ===
+# ─── Global environment instance ─────────────────────────────────────────────
 
-class ImmunoOrgOpenEnv(Environment[ImmunoOrgAction, ImmunoOrgObservation, ImmunoOrgState]):
-    """OpenEnv Environment subclass wrapping ImmunoOrgEnvironment."""
-
-    def __init__(self, difficulty: int = 1, **kwargs):
-        super().__init__(**kwargs)
-        self.difficulty = difficulty
-        self.env: ImmunoOrgEnvironment | None = None
-        self._state = ImmunoOrgState()
-
-    def reset(
-        self,
-        seed: Optional[int] = None,
-        episode_id: Optional[str] = None,
-        **kwargs: Any,
-    ) -> ImmunoOrgObservation:
-        difficulty = kwargs.get("difficulty", self.difficulty)
-        self.env = ImmunoOrgEnvironment(difficulty=difficulty, seed=seed)
-        obs = self.env.reset(task=kwargs.get("task"))
-
-        self._state = ImmunoOrgState(
-            episode_id=episode_id or self.env.state.episode_id,
-            step_count=0,
-            difficulty_level=difficulty,
-            current_phase=obs.current_phase.value,
-            threat_level=obs.threat_level,
-        )
-
-        return self._to_openenv_obs(obs, done=False, reward=0.0)
-
-    def step(
-        self,
-        action: ImmunoOrgAction,
-        timeout_s: Optional[float] = None,
-        **kwargs: Any,
-    ) -> ImmunoOrgObservation:
-        if self.env is None:
-            return ImmunoOrgObservation(
-                done=True, reward=0.0,
-                action_result="Environment not initialized. Call reset() first.",
-                action_success=False,
-            )
-
-        # Convert OpenEnv action to internal action
-        from immunoorg.models import ImmunoAction
-        internal_action = ImmunoAction(
-            action_type=ActionType(action.action_type) if action.action_type else ActionType.TACTICAL,
-            tactical_action=TacticalAction(action.tactical_action) if action.tactical_action else None,
-            strategic_action=StrategicAction(action.strategic_action) if action.strategic_action else None,
-            diagnostic_action=DiagnosticAction(action.diagnostic_action) if action.diagnostic_action else None,
-            target=action.target or "",
-            secondary_target=action.secondary_target,
-            parameters=action.parameters or {},
-            reasoning=action.reasoning or "",
-        )
-
-        obs, reward, terminated = self.env.step(internal_action)
-
-        # Update state
-        self._state.step_count = self.env.state.step_count
-        self._state.current_phase = obs.current_phase.value
-        self._state.threat_level = obs.threat_level
-        self._state.total_downtime = self.env.state.total_downtime
-        self._state.total_damage = self.env.state.total_damage
-        self._state.org_chaos_score = self.env.state.org_chaos_score
-        self._state.cumulative_reward = self.env.state.cumulative_reward
-        self._state.active_attacks = len(self.env.state.active_attacks)
-        self._state.contained_attacks = len(self.env.state.contained_attacks)
-        self._state.org_changes_made = self.env.state.org_changes_made
-        self._state.self_improvement_generation = self.env.state.self_improvement_generation
-        self._state.termination_reason = self.env.state.termination_reason
-
-        return self._to_openenv_obs(obs, done=terminated, reward=reward)
-
-    def state(self) -> ImmunoOrgState:
-        return self._state
-
-    def close(self) -> None:
-        self.env = None
-
-    def _to_openenv_obs(self, obs, done: bool, reward: float) -> ImmunoOrgObservation:
-        """Convert internal observation to OpenEnv observation."""
-        return ImmunoOrgObservation(
-            done=done,
-            reward=reward,
-            metadata={
-                "cumulative_reward": self.env.state.cumulative_reward if self.env else 0,
-                "phase": obs.current_phase.value,
-                "belief_accuracy": self.env.belief_map.calculate_belief_accuracy() if self.env and self.env.belief_map else 0,
-            },
-            current_phase=obs.current_phase.value,
-            step_count=obs.step_count,
-            sim_time=obs.sim_time,
-            threat_level=obs.threat_level,
-            system_downtime=obs.system_downtime,
-            action_result=obs.action_result,
-            action_success=obs.action_success,
-            visible_nodes=[n.model_dump() for n in obs.visible_nodes],
-            detected_attacks=[a.model_dump() for a in obs.detected_attacks],
-            recent_logs=[l.model_dump() for l in obs.recent_logs[:10]],
-            network_health_summary=obs.network_health_summary,
-            org_nodes=[n.model_dump() for n in obs.org_nodes],
-            pending_approvals=[a.model_dump() for a in obs.pending_approvals],
-            belief_map_feedback=obs.belief_map_feedback,
-            alerts=obs.alerts,
-        )
+_env: Optional[ImmunoOrgEnvironment] = None
+_episode_id: str = ""
 
 
-# === Create the FastAPI app using OpenEnv's factory ===
+def _get_env() -> ImmunoOrgEnvironment:
+    if _env is None:
+        raise HTTPException(status_code=400, detail="Environment not initialized. Call /reset first.")
+    return _env
 
-def env_factory():
-    return ImmunoOrgOpenEnv(difficulty=1)
 
-app = create_fastapi_app(env_factory, ImmunoOrgAction, ImmunoOrgObservation)
+def _build_action(req: ImmunoOrgAction) -> ImmunoAction:
+    try:
+        atype = ActionType(req.action_type)
+    except ValueError:
+        atype = ActionType.TACTICAL
+
+    tactical = TacticalAction(req.tactical_action) if req.tactical_action else None
+    strategic = StrategicAction(req.strategic_action) if req.strategic_action else None
+    diagnostic = DiagnosticAction(req.diagnostic_action) if req.diagnostic_action else None
+
+    return ImmunoAction(
+        action_type=atype,
+        tactical_action=tactical,
+        strategic_action=strategic,
+        diagnostic_action=diagnostic,
+        target=req.target or "",
+        secondary_target=req.secondary_target,
+        parameters=req.parameters or {},
+        reasoning=req.reasoning or "",
+    )
+
+
+def _obs_to_payload(obs, done: bool) -> ImmunoOrgObservation:
+    return ImmunoOrgObservation(
+        done=done,
+        episode_id=_episode_id,
+        current_phase=obs.current_phase.value,
+        step_count=obs.step_count,
+        sim_time=obs.sim_time,
+        threat_level=obs.threat_level,
+        system_downtime=obs.system_downtime,
+        action_result=obs.action_result,
+        action_success=obs.action_success,
+        visible_nodes=[n.model_dump() for n in obs.visible_nodes],
+        detected_attacks=[a.model_dump() for a in obs.detected_attacks],
+        recent_logs=[lg.model_dump() for lg in obs.recent_logs[:10]],
+        network_health_summary=obs.network_health_summary,
+        org_nodes=[n.model_dump() for n in obs.org_nodes],
+        pending_approvals=[a.model_dump() for a in obs.pending_approvals],
+        belief_map_feedback=obs.belief_map_feedback,
+        alerts=obs.alerts,
+    )
+
+
+def _step_response(obs, reward: float, done: bool) -> StepResponse:
+    observation = _obs_to_payload(obs, done=done)
+    info = {
+        "episode_id": _episode_id,
+        "phase": observation.current_phase,
+        "step_count": observation.step_count,
+    }
+    return StepResponse(observation=observation, reward=reward, done=done, info=info)
+
+
+# ─── FastAPI app ──────────────────────────────────────────────────────────────
+
+app = FastAPI(
+    title="ImmunoOrg 2.0 OpenEnv API",
+    description="The Autonomous, Self-Healing Enterprise — OpenEnv RL Environment",
+    version="2.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/health")
+async def health():
+    return {
+        "status": "healthy",
+        "version": "2.0.0",
+        "environment": "ImmunoOrg",
+        "episode_active": _env is not None,
+    }
+
+
+@app.get("/")
+async def root():
+    return {
+        "name": "ImmunoOrg 2.0",
+        "description": "Autonomous, Self-Healing Enterprise — OpenEnv RL Environment",
+        "endpoints": ["/health", "/reset", "/step", "/state"],
+        "hf_space": "https://huggingface.co/spaces/hirann/immunoorg-2",
+        "version": "2.0.0",
+    }
+
+
+@app.post("/reset")
+async def reset(req: ResetRequest = ResetRequest()) -> StepResponse:
+    global _env, _episode_id
+    _episode_id = str(uuid.uuid4())
+    _env = ImmunoOrgEnvironment(difficulty=req.difficulty, seed=req.seed)
+    obs = _env.reset()
+    return _step_response(obs, reward=0.0, done=False)
+
+
+@app.post("/step")
+async def step(req: ImmunoOrgAction | StepEnvelope):
+    env = _get_env()
+    action_req = req.action if isinstance(req, StepEnvelope) else req
+    action = _build_action(action_req)
+    obs, reward, done = env.step(action)
+    return _step_response(obs, reward=reward, done=done)
+
+
+@app.get("/state")
+async def state():
+    env = _get_env()
+    s = env.state
+    return {
+        "episode_id": _episode_id,
+        "step_count": s.step_count,
+        "difficulty_level": s.difficulty_level,
+        "current_phase": s.current_phase.value,
+        "threat_level": s.threat_level,
+        "total_downtime": s.total_downtime,
+        "total_damage": s.total_damage,
+        "org_chaos_score": s.org_chaos_score,
+        "cumulative_reward": s.cumulative_reward,
+        "active_attacks": len(s.active_attacks),
+        "contained_attacks": len(s.contained_attacks),
+        "org_changes_made": s.org_changes_made,
+        "termination_reason": s.termination_reason,
+        # 2.0 metrics
+        "migration_progress": env.migration_engine.get_progress() if env.migration_engine else {},
+        "pipeline_integrity": env._last_pipeline_integrity,
+        "war_room_debates": len(env.war_room.debate_history) if env.war_room else 0,
+        "patronus_score": env.executive_context.get_patronus_score() if env.executive_context else 0.5,
+    }
+
+
+@app.get("/openenv.yaml")
+async def get_openenv_yaml():
+    """Serve the environment manifest."""
+    try:
+        with open("openenv.yaml", "r") as f:
+            content = f.read()
+        return PlainTextResponse(content, media_type="text/yaml")
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="openenv.yaml not found")
 
 
 if __name__ == "__main__":
