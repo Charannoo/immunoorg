@@ -42,7 +42,7 @@ def upload_to_hf(token: str, username: str, space_name: str = "immunoorg-2"):
         '.git', '__pycache__', '.pyc', '.planning',
         'node_modules', '.env', '*.egg-info',
         'ImmunoOrg_Training_Colab.ipynb',  # too large for space
-        'test_2_0_smoke.py',
+        '.pytest_cache', '.venv', 'training_runs',
     }
 
     root = Path('.')
@@ -51,15 +51,17 @@ def upload_to_hf(token: str, username: str, space_name: str = "immunoorg-2"):
     # Core files list (ordered by importance)
     core_patterns = [
         'Dockerfile', 'requirements.txt', 'openenv.yaml', 'README.md',
-        'BLOG_POST.md', 'SUBMISSION_CHECKLIST.md',
-        'demo_runner.py', 'generate_evidence_2.py',
+        'BLOG_POST.md', 'JUDGING_GUIDE.md', 'RESEARCH.md',
+        'demo_runner.py', 'generate_evidence.py',
         'evidence_*.png',
-        'server/main.py',
+        'server/main.py', 'server/config.py',
         'immunoorg/*.py',
         'immunoorg/agents/*.py',
         'visualization/dashboard.py',
         'visualization/metrics.py',
         'training/train_grpo.py',
+        'training/scenario_hooks.py',
+        'training/grpo_training_pipeline.py',
     ]
 
     # Collect files

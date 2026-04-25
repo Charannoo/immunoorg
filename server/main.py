@@ -26,55 +26,13 @@ from immunoorg.models import (
     ActionType, TacticalAction, StrategicAction, DiagnosticAction, ImmunoAction,
 )
 from immunoorg.environment import ImmunoOrgEnvironment
-
-
-# ─── Request / Response schemas ──────────────────────────────────────────────
-
-class ResetRequest(BaseModel):
-    seed: Optional[int] = None
-    difficulty: int = 1
-    task: Optional[str] = None
-
-
-class ImmunoOrgAction(BaseModel):
-    action_type: str = "tactical"
-    tactical_action: Optional[str] = None
-    strategic_action: Optional[str] = None
-    diagnostic_action: Optional[str] = None
-    target: str = ""
-    secondary_target: Optional[str] = None
-    parameters: dict[str, Any] = {}
-    reasoning: str = ""
-
-class StepEnvelope(BaseModel):
-    """OpenEnv-style request body: { action: {...} }"""
-    action: ImmunoOrgAction
-
-class ImmunoOrgObservation(BaseModel):
-    """OpenEnv-style observation payload returned in responses."""
-    done: bool
-    episode_id: str
-    current_phase: str
-    step_count: int
-    sim_time: float
-    threat_level: float
-    system_downtime: float
-    action_result: str
-    action_success: bool
-    visible_nodes: list[dict[str, Any]]
-    detected_attacks: list[dict[str, Any]]
-    recent_logs: list[dict[str, Any]]
-    network_health_summary: dict[str, Any]
-    org_nodes: list[dict[str, Any]]
-    pending_approvals: list[dict[str, Any]]
-    belief_map_feedback: str
-    alerts: list[str]
-
-class StepResponse(BaseModel):
-    observation: ImmunoOrgObservation
-    reward: float
-    done: bool
-    info: dict[str, Any]
+from immunoorg.api_models import (
+    ResetRequest,
+    ImmunoOrgAction,
+    StepEnvelope,
+    ImmunoOrgObservation,
+    StepResponse,
+)
 
 
 # ─── Global environment instance ─────────────────────────────────────────────

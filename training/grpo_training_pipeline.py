@@ -1,61 +1,77 @@
 """
-ImmunoOrg 2.0: Elite GRPO Training Pipeline
-==========================================
+ImmunoOrg 2.0: Complete GRPO Training Pipeline
+==============================================
 
-This module handles the full RL training cycle:
-1. Scenario Generation (Curriculum, Edge Cases, Co-Evolution)
-2. Trajectory Execution (converting scenarios to obs->action->reward)
-3. GRPO Optimization (using TRL and Unsloth)
-4. Weight Deployment (pushing to HF Hub)
+Complete pipeline for GRPO training on ImmunoOrg 2.0:
+1. Generate datasets (curriculum, edge cases, complexity, coevolution)
+2. Execute trajectories with LLM agent
+3. Convert to GRPO format
+4. Train with TRL GRPO trainer
+5. Save trained weights
+6. Generate reward curves
 
-Designed to run as a background process on HF Spaces via the /admin/training/start endpoint.
+This module is designed to run in Google Colab.
 """
 
 import os
-import sys
 import json
 import gzip
 import logging
-import argparse
-import time
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 from dataclasses import dataclass
+import time
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler(sys.stdout)]
+    format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
+
 # ============================================================
-# PATHS & PERSISTENCE (BUCKET SUPPORT)
+# PERSISTENT-PATH HELPERS (used by server/main.py admin endpoints)
 # ============================================================
 
-def get_base_dir() -> Path:
-    """
-    Determine the base directory for saving data.
-    Uses /data if available (HF Space Bucket), otherwise falls back to training/
-    """
-    if os.path.exists("/data"):
-        return Path("/data")
-    return Path(__file__).resolve().parent
+# When running on Hugging Face Spaces with a Persistent Storage volume,
+# /data is writable across restarts. Otherwise we fall back to a folder
+# inside the repo so local development still works.
+_HF_DATA_DIR = Path("/data")
+
 
 def training_root() -> Path:
-    """Root directory for all training assets."""
-    return get_base_dir() / "training_outputs"
+    """Return the writable directory used for training artifacts.
+
+    Prefers /data when present (HF Spaces persistent storage), else
+    falls back to a local ``./training_runs`` folder.
+    """
+    if _HF_DATA_DIR.exists() and os.access(_HF_DATA_DIR, os.W_OK):
+        root = _HF_DATA_DIR / "immunoorg-training"
+    else:
+        root = Path(__file__).resolve().parent.parent / "training_runs"
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
 
 def log_file() -> Path:
-    """Path to the training log file."""
-    root = training_root()
-    root.mkdir(parents=True, exist_ok=True)
-    return root / "grpo_training.log"
+    """Path to the training subprocess log (tail-able via /admin/training/log)."""
+    return training_root() / "train.log"
+
 
 def status_file() -> Path:
-    """Path to the JSON status file for tracking progress."""
-    return training_root() / "training_status.json"
+    """Path to the JSON status file written by the training subprocess."""
+    return training_root() / "status.json"
+
+
+def write_status(payload: Dict[str, Any]) -> None:
+    """Atomically write the training status JSON for the admin endpoint."""
+    p = status_file()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    tmp.replace(p)
+
 
 # ============================================================
 # CONFIGURATION
@@ -63,21 +79,33 @@ def status_file() -> Path:
 
 @dataclass
 class TrainingConfig:
-    model_name: str = "mistralai/Mistral-Nemo-Instruct-2407"
+    """Configuration for complete training pipeline."""
+    # Model settings
+    model_name: str = "meta-llama/Meta-Llama-3-8B-Instruct"
     max_seq_length: int = 2048
     load_in_4bit: bool = True
+    
+    # GRPO settings
     num_generations: int = 8
     batch_size: int = 4
     num_train_epochs: int = 1
     learning_rate: float = 1e-5
+    max_grad_norm: float = 1.0
     beta: float = 0.01
-    dataset_dir: str = str(get_base_dir() / "datasets")
-    output_dir: str = str(get_base_dir() / "checkpoints")
-    push_to_hub: bool = True
-    hub_model_id: str = "hirann/immunoorg-patronus-v2-elite"
+    
+    # Dataset settings
+    dataset_dir: str = "training/datasets"
+    trajectory_dir: str = "training/trajectories"
+    grpo_data_dir: str = "training/grpo_data"
+    
+    # Output settings
+    output_dir: str = "training/output"
+    push_to_hub: bool = False
+    hub_model_id: Optional[str] = None
+
 
 # ============================================================
-# DATASET & TRAJECTORY TOOLS
+# DATASET LOADER
 # ============================================================
 
 def load_scenarios(filepath: str) -> List[Dict[str, Any]]:
@@ -89,166 +117,427 @@ def load_scenarios(filepath: str) -> List[Dict[str, Any]]:
         with open(filepath, 'r', encoding='utf-8') as f:
             return json.load(f)
 
+
 def get_all_scenarios(config: TrainingConfig) -> List[Dict[str, Any]]:
-    """Load all scenario sets."""
+    """
+    Load all scenarios from dataset directory.
+    
+    Args:
+        config: Training configuration
+        
+    Returns:
+        Combined list of all scenarios
+    """
     all_scenarios = []
+    
     dataset_files = {
         "curriculum": "curriculum_dataset.json.gz",
         "edge_case": "edge_case_dataset.json.gz",
         "complexity_matrix": "complexity_matrix_dataset.json.gz",
-        "coevolution": "coevolution_dataset.json.gz"
+        "coevolution": "coevolution_dataset.json.gz",
+        "elite_scenario_mix": "elite_scenario_mix_dataset.json.gz",
     }
     
-    for dtype, fname in dataset_files.items():
-        path = Path(config.dataset_dir) / fname
-        if path.exists():
-            scs = load_scenarios(str(path))
-            for s in scs: s["dataset_type"] = dtype
-            all_scenarios.extend(scs)
+    for dataset_type, filename in dataset_files.items():
+        filepath = Path(config.dataset_dir) / filename
+        
+        if filepath.exists():
+            scenarios = load_scenarios(str(filepath))
+            # Add dataset type to each scenario
+            for s in scenarios:
+                s["dataset_type"] = dataset_type
+            
+            all_scenarios.extend(scenarios)
+            logger.info(f"Loaded {len(scenarios)} scenarios from {dataset_type}")
+    
+    logger.info(f"Total scenarios: {len(all_scenarios)}")
+    
     return all_scenarios
 
-# ============================================================
-# REWARD FUNCTION (Socio-Technical)
-# ============================================================
-
-def immuno_reward_fn(prompts, completions, **kwargs):
-    """
-    Reward function for GRPO.
-    Focuses on:
-    1. Format compliance.
-    2. Phase-appropriate action logic.
-    3. Threat reduction.
-    """
-    rewards = []
-    for completion in completions:
-        r = 0.0
-        # A. Strict Format Check
-        if all(k in completion for k in ["REASONING:", "ACTION:", "DETAIL:", "TARGET:"]):
-            r += 0.3
-        else:
-            r -= 0.5
-            
-        # B. Action Logic (Simple heuristic for training)
-        # In full implementation, this calls the live env.step() reward
-        if "TACKTICAL" in completion or "STRATEGIC" in completion:
-            r += 0.2
-            
-        rewards.append(r)
-    return rewards
 
 # ============================================================
-# MAIN TRAINING ENGINE
+# GRPO FORMAT CONVERTER
 # ============================================================
 
-def run_training(
-    model_name: str = "mistralai/Mistral-Nemo-Instruct-2407",
-    epochs: int = 1,
-    smoke_test: bool = False
-):
-    """The core GRPO training loop."""
-    config = TrainingConfig(
-        model_name=model_name, 
-        num_train_epochs=epochs
+def observation_to_prompt(obs: Dict[str, Any], difficulty: int) -> str:
+    """Convert observation to LLM prompt."""
+    prompt = f"""You are the Patronus AI, an autonomous self-healing enterprise agent.
+
+PHASE: {obs.get('current_phase', 'unknown')}
+DIFFICULTY: {difficulty}
+THREAT_LEVEL: {obs.get('threat_level', 0.0):.2f}
+STEP: {obs.get('step_count', 0)} | TIME: {obs.get('sim_time', 0.0):.0f}
+
+=== BOARD DIRECTIVES ===
+{directives if (directives := obs.get('directives')) else 'None'}
+
+=== RAG CVE INTELLIGENCE ===
+{alerts if (alerts := obs.get('alerts')) else 'No alerts'}
+
+=== NETWORK STATE ===
+Visible Nodes: {len(obs.get('visible_nodes', []))} | Health: {health if (health := obs.get('network_health_summary', {}).get('average_health')) else 0.0:.1f}
+Detected Threats: {len(obs.get('detected_attacks', []))}
+
+=== ORG STATE ===
+Departments: {len(obs.get('org_nodes', []))} | Pending Approvals: {len(obs.get('pending_approvals', []))}
+
+TASK: Analyze the situation. Return your reasoning and chosen action.
+FORMAT: REASONING: <text> | ACTION: <type> | DETAIL: <action_name> | TARGET: <target_id>"""
+    return prompt
+
+
+def action_to_completion(action: Dict[str, Any]) -> str:
+    """Convert action to completion format."""
+    reasoning = action.get("reasoning", "Executing standard procedure")
+    action_type = action.get("action_type", "DIAGNOSTIC")
+    detail = (
+        action.get("tactical_action") or 
+        action.get("strategic_action") or 
+        action.get("diagnostic_action") or 
+        "QUERY_BELIEF_MAP"
     )
+    target = action.get("target", "system")
     
-    logger.info(f"Starting Elite Training: Model={model_name}, Epochs={epochs}, SmokeTest={smoke_test}")
+    return f"REASONING: {reasoning} | ACTION: {action_type} | DETAIL: {detail} | TARGET: {target}"
+
+
+# ============================================================
+# REWARD FUNCTION (for Colab)
+# ============================================================
+
+def compute_reward_from_step(
+    obs: Dict[str, Any],
+    action: Dict[str, Any],
+    terminated: bool
+) -> float:
+    """
+    Compute simplified step reward for training.
     
-    try:
-        # 1. Initialize Unsloth Model
-        from unsloth import FastLanguageModel
-        from trl import GRPOTrainer, GRPOConfig
-        from datasets import Dataset as HFDataset
+    This is a simplified reward function for generating training data.
+    In production, use the full reward calculator from immunoorg.reward.
+    
+    Args:
+        obs: Current observation
+        action: Action taken
+        terminated: Whether episode is done
         
-        model, tokenizer = FastLanguageModel.from_pretrained(
-            model_name=config.model_name,
-            max_seq_length=config.max_seq_length,
-            load_in_4bit=config.load_in_4bit,
-        )
+    Returns:
+        Reward value (0-1)
+    """
+    # Base reward from step
+    reward = 0.1  # Base reward for taking any action
+    
+    # Action success bonus
+    if obs.get("action_success", True):
+        reward += 0.05
+    else:
+        reward -= 0.03
+    
+    # Threat containment bonus
+    detected_attacks = obs.get("detected_attacks", [])
+    threat_level = obs.get("threat_level", 0.0)
+    
+    if len(detected_attacks) == 0 and threat_level < 0.1:
+        reward += 0.2  # Bonus for containing threats
+    elif threat_level > 0.7:
+        reward -= 0.1  # Penalty for high threat level
+    
+    # Phase-appropriate action bonus
+    current_phase = obs.get("current_phase", "detection")
+    action_type = action.get("action_type", "diagnostic").lower()
+    
+    phase_actions = {
+        "detection": ["scan_logs", "vulnerability_scan", "query_belief_map", "trace_attack_path"],
+        "containment": ["isolate_node", "block_port", "quarantine_traffic"],
+        "rca": ["correlate_failure", "identify_silo", "timeline_reconstruct"],
+        "refactor": ["merge_departments", "create_shortcut_edge", "reduce_bureaucracy"],
+        "validation": ["measure_org_latency", "vulnerability_scan"]
+    }
+    
+    detail = action.get("tactical_action") or action.get("strategic_action") or action.get("diagnostic_action") or ""
+    
+    if detail.lower() in phase_actions.get(current_phase, []):
+        reward += 0.1  # Phase-appropriate bonus
+    
+    # Termination bonus
+    if terminated:
+        if len(detected_attacks) == 0:
+            reward += 0.3  # Victory bonus
+        else:
+            reward -= 0.2  # Failure penalty
+    
+    # Clamp to 0-1
+    return max(0.0, min(1.0, reward))
+
+
+# ============================================================
+# TRAINING DATA GENERATOR (MOCK FOR DEMO)
+# ============================================================
+
+def generate_mock_training_data(
+    num_samples: int = 500,
+    config: Optional[TrainingConfig] = None
+) -> List[Dict[str, Any]]:
+    """
+    Generate mock training data for demonstration.
+    
+    In a real Colab, this would execute scenarios with a real LLM agent.
+    For now, we generate synthetic prompt/completion/reward data.
+    
+    Args:
+        num_samples: Number of samples to generate
+        config: Training configuration
         
-        model = FastLanguageModel.get_peft_model(
-            model,
-            r=16,
-            target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
-            lora_alpha=16,
-            lora_dropout=0,
-            bias="none",
-        )
+    Returns:
+        List of GRPO training samples
+    """
+    logger.info(f"Generating {num_samples} mock training samples...")
+    
+    # Sample prompts (simulating different observations)
+    phases = ["detection", "containment", "rca", "refactor", "validation"]
+    action_types = ["TACTICAL", "STRATEGIC", "DIAGNOSTIC"]
+    tactical_actions = ["ISOLATE_NODE", "BLOCK_PORT", "SCAN_LOGS", "DEPLOY_PATCH", "QUARANTINE_TRAFFIC"]
+    strategic_actions = ["MERGE_DEPARTMENTS", "CREATE_SHORTCUT_EDGE", "REDUCE_BUREAUCRACY", "REWRITE_POLICY"]
+    diagnostic_actions = ["QUERY_BELIEF_MAP", "TRACE_ATTACK_PATH", "IDENTIFY_SILO", "CORRELATE_FAILURE"]
+    
+    data = []
+    
+    for i in range(num_samples):
+        phase = phases[i % len(phases)]
+        difficulty = (i % 4) + 1
+        threat_level = 0.3 + (0.2 * (i % 3))
         
-        # 2. Load Scenarios and Convert to GRPO format
-        scenarios = get_all_scenarios(config)
-        if smoke_test:
-            scenarios = scenarios[:10]
-            logger.info("Smoke Test: Using only 10 scenarios.")
-            
-        # Convert scenarios to GRPO prompt/completion pairs
-        # (Simplified conversion for the pipeline)
-        grpo_samples = []
-        for s in scenarios:
-            # Mock prompt/completion based on scenario config
-            prompt = f"Scenario: {s['scenario_id']} | Difficulty: {s['difficulty']} | Goal: Resolve threat."
-            completion = "REASONING: Identifying threat. | ACTION: DIAGNOSTIC | DETAIL: SCAN_LOGS | TARGET: web-01"
-            grpo_samples.append({"prompt": prompt, "completion": completion})
-            
-        train_dataset = HFDataset.from_list(grpo_samples)
+        # Generate mock observation
+        obs = {
+            "current_phase": phase,
+            "threat_level": threat_level,
+            "step_count": i % 50,
+            "sim_time": float(i * 10),
+            "directives": ["Maintain 99.9% uptime"] if i % 5 == 0 else [],
+            "alerts": [f"CVE-2024-{i%1000}: Critical vulnerability detected"] if i % 3 == 0 else [],
+            "visible_nodes": [{"id": f"node-{j}", "name": f"Server {j}"} for j in range(5)],
+            "network_health_summary": {"average_health": 0.85},
+            "detected_attacks": [{"vector": "sql_injection", "severity": 0.5}] if threat_level > 0.5 else [],
+            "org_nodes": [{"id": f"dept-{j}", "name": f"Department {j}"} for j in range(3)],
+            "pending_approvals": [{"id": f"approval-{j}", "status": "pending"} for j in range(2)] if i % 4 == 0 else [],
+            "action_success": True
+        }
         
-        # 3. GRPO Trainer
-        training_args = GRPOConfig(
-            output_dir=config.output_dir,
-            learning_rate=config.learning_rate,
-            num_train_epochs=config.num_train_epochs,
-            per_device_train_batch_size=config.batch_size,
-            num_generations=config.num_generations,
-            max_prompt_length=512,
-            max_completion_length=256,
-        )
+        # Generate mock action
+        action_type = action_types[i % len(action_types)]
         
-        trainer = GRPOTrainer(
-            model=model,
-            reward_funcs=[immuno_reward_fn],
-            args=training_args,
-            train_dataset=train_dataset,
-            processing_class=tokenizer,
-        )
+        if action_type == "TACTICAL":
+            detail = tactical_actions[i % len(tactical_actions)]
+        elif action_type == "STRATEGIC":
+            detail = strategic_actions[i % len(strategic_actions)]
+        else:
+            detail = diagnostic_actions[i % len(diagnostic_actions)]
         
-        # Track status
-        with open(status_file(), "w") as f:
-            json.dump({"state": "training", "epochs": epochs, "progress": 0}, f)
-            
-        trainer.train()
+        action = {
+            "action_type": action_type,
+            detail.lower(): detail,
+            "target": f"node-{i % 5}",
+            "reasoning": f"Analyzing {phase} phase with threat level {threat_level:.2f}"
+        }
         
-        # 4. Deployment
-        if config.push_to_hub:
-            model.push_to_hub(config.hub_model_id)
-            tokenizer.push_to_hub(config.hub_model_id)
-            
-        with open(status_file(), "w") as f:
-            json.dump({"state": "completed", "epochs": epochs, "progress": 100}, f)
-            
-        logger.info(f"Training Complete. Model pushed to {config.hub_model_id}")
+        # Generate reward
+        terminated = (i % 50 == 0)
+        reward = compute_reward_from_step(obs, action, terminated)
         
-    except Exception as e:
-        logger.error(f"Training failed: {str(e)}")
-        with open(status_file(), "w") as f:
-            json.dump({"state": "failed", "error": str(e)}, f)
-        raise e
+        # Convert to GRPO format
+        prompt = observation_to_prompt(obs, difficulty)
+        completion = action_to_completion(action)
+        
+        data.append({
+            "prompt": prompt,
+            "completion": completion,
+            "reward": reward,
+            "difficulty": difficulty,
+            "phase": phase
+        })
+    
+    logger.info(f"Generated {len(data)} training samples")
+    logger.info(f"  Average reward: {sum(d['reward'] for d in data) / len(data):.4f}")
+    logger.info(f"  Reward std: {(sum((d['reward'] - sum(d['reward'] for d in data) / len(data))**2 for d in data) / len(data))**0.5:.4f}")
+    
+    return data
+
+
+# ============================================================
+# MAIN PIPELINE
+# ============================================================
+
+def run_complete_pipeline(
+    config: Optional[TrainingConfig] = None,
+    generate_samples: int = 1185
+) -> Dict[str, Any]:
+    """
+    Run complete GRPO training pipeline.
+    
+    Args:
+        config: Training configuration
+        generate_samples: Number of samples to generate (if not using live scenarios)
+        
+    Returns:
+        Dictionary with pipeline results
+    """
+    if config is None:
+        config = TrainingConfig()
+    
+    logger.info("=" * 70)
+    logger.info("IMMUNOORG 2.0: COMPLETE GRPO TRAINING PIPELINE")
+    logger.info("=" * 70)
+    
+    start_time = time.time()
+    results = {}
+    
+    # Step 1: Load scenario definitions
+    logger.info("\n[1/5] LOADING SCENARIO DEFINITIONS...")
+    scenarios = get_all_scenarios(config)
+    results["total_scenarios"] = len(scenarios)
+    
+    # Step 2: Generate training data (mock for demo, real would execute with LLM)
+    logger.info(f"\n[2/5] GENERATING TRAINING DATA ({generate_samples} samples)...")
+    training_data = generate_mock_training_data(generate_samples, config)
+    results["training_samples"] = len(training_data)
+    
+    # Save training data
+    output_dir = Path(config.grpo_data_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    grpo_file = output_dir / "grpo_training_data.json.gz"
+    with gzip.open(str(grpo_file), 'wt', encoding='utf-8') as f:
+        json.dump(training_data, f, indent=2)
+    logger.info(f"Saved training data to {grpo_file}")
+    results["grpo_data_file"] = str(grpo_file)
+    
+    # Step 3: Compute statistics
+    logger.info("\n[3/5] COMPUTING DATASET STATISTICS...")
+    
+    # Reward distribution by difficulty
+    reward_by_difficulty = {}
+    for sample in training_data:
+        d = sample.get("difficulty", 1)
+        if d not in reward_by_difficulty:
+            reward_by_difficulty[d] = []
+        reward_by_difficulty[d].append(sample["reward"])
+    
+    stats = {}
+    for d, rewards in reward_by_difficulty.items():
+        stats[f"difficulty_{d}"] = {
+            "count": len(rewards),
+            "avg_reward": sum(rewards) / len(rewards),
+            "std_reward": (sum((r - sum(rewards)/len(rewards))**2 for r in rewards) / len(rewards))**0.5
+        }
+    
+    results["statistics"] = stats
+    
+    # Print statistics
+    logger.info("\nReward Distribution by Difficulty:")
+    for d in sorted(stats.keys()):
+        s = stats[d]
+        logger.info(f"  {s['count']} samples | avg_reward={s['avg_reward']:.4f} | std={s['std_reward']:.4f}")
+    
+    # Step 4: Save statistics
+    logger.info("\n[4/5] SAVING STATISTICS...")
+    
+    stats_file = Path(config.output_dir) / "training_statistics.json"
+    stats_file.parent.mkdir(parents=True, exist_ok=True)
+    
+    with open(stats_file, 'w') as f:
+        json.dump(results, f, indent=2)
+    logger.info(f"Saved statistics to {stats_file}")
+    
+    # Step 5: Summary
+    elapsed = time.time() - start_time
+    
+    logger.info("\n" + "=" * 70)
+    logger.info("PIPELINE COMPLETE")
+    logger.info("=" * 70)
+    logger.info(f"Total scenarios: {results['total_scenarios']}")
+    logger.info(f"Training samples: {results['training_samples']}")
+    logger.info(f"Time elapsed: {elapsed:.1f}s")
+    logger.info(f"Output files:")
+    logger.info(f"  - GRPO data: {results['grpo_data_file']}")
+    logger.info(f"  - Statistics: {stats_file}")
+    
+    return results
+
 
 # ============================================================
 # CLI ENTRY POINT
 # ============================================================
 
-if __name__ == "__main__":
+def main(argv: Optional[List[str]] = None):
+    """CLI entry point.
+
+    Subcommands:
+      ``data`` (default) — generate the GRPO mock training dataset only.
+      ``run``            — run end-to-end TRL+GRPO training using
+                           ``training.train_grpo``. This is what the
+                           HF Space ``/admin/training/start`` endpoint
+                           shells out to.
+    """
     import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["run"])
-    parser.add_argument("--model", type=str, default="mistralai/Mistral-Nemo-Instruct-2407")
-    parser.add_argument("--epochs", type=int, default=1)
-    parser.add_argument("--smoke-test", action="store_true")
-    
-    args = parser.parse_args()
-    
-    if args.command == "run":
-        run_training(
-            model_name=args.model,
-            epochs=args.epochs,
-            smoke_test=args.smoke_test
-        )
+    import sys
+
+    parser = argparse.ArgumentParser(description="ImmunoOrg GRPO Training Pipeline")
+    subs = parser.add_subparsers(dest="cmd")
+
+    # data subcommand
+    p_data = subs.add_parser("data", help="Generate mock GRPO dataset only")
+    p_data.add_argument("--samples", type=int, default=500)
+
+    # run subcommand (delegates to training.train_grpo)
+    p_run = subs.add_parser("run", help="Run TRL GRPO training end-to-end")
+    p_run.add_argument("--smoke-test", action="store_true")
+    p_run.add_argument("--model", default="Qwen/Qwen2.5-0.5B-Instruct")
+    p_run.add_argument("--epochs", type=int, default=1)
+    p_run.add_argument("--batch-size", type=int, default=2)
+    p_run.add_argument("--output-dir", default=str(training_root() / "checkpoints" / "immunoorg-defender"))
+
+    args = parser.parse_args(argv)
+    cmd = args.cmd or "data"
+
+    if cmd == "data":
+        config = TrainingConfig()
+        return run_complete_pipeline(config, generate_samples=args.samples)
+
+    if cmd == "run":
+        write_status({
+            "state": "starting",
+            "model": args.model,
+            "epochs": args.epochs,
+            "smoke_test": bool(args.smoke_test),
+            "started_at": time.time(),
+        })
+        try:
+            from training.train_grpo import run_grpo_training, parse_train_args
+            train_argv = [
+                "--model", args.model,
+                "--epochs", str(args.epochs),
+                "--batch-size", str(args.batch_size),
+                "--output-dir", args.output_dir,
+            ]
+            if args.smoke_test:
+                train_argv.append("--smoke-test")
+            run_grpo_training(parse_train_args(train_argv))
+        except SystemExit as e:
+            write_status({"state": "failed", "error": f"SystemExit: {e}"})
+            raise
+        except Exception as e:
+            write_status({"state": "failed", "error": str(e)})
+            logger.exception("Training run failed")
+            sys.exit(1)
+        write_status({
+            "state": "completed",
+            "output_dir": args.output_dir,
+            "completed_at": time.time(),
+        })
+        return None
+
+    parser.print_help()
+
+
+if __name__ == "__main__":
+    main()

@@ -289,8 +289,10 @@ def run_grpo_training(args: Namespace) -> None:
     else:
         from transformers import AutoModelForCausalLM, AutoTokenizer
         from peft import get_peft_model, LoraConfig
+        import torch as _torch
         tokenizer = AutoTokenizer.from_pretrained(args.model)
-        model = AutoModelForCausalLM.from_pretrained(args.model, device_map="auto")
+        device_map = "auto" if _torch.cuda.is_available() else "cpu"
+        model = AutoModelForCausalLM.from_pretrained(args.model, device_map=device_map)
         lora_config = LoraConfig(r=16, lora_alpha=16, target_modules="all-linear")
         model = get_peft_model(model, lora_config)
 
@@ -305,7 +307,13 @@ def run_grpo_training(args: Namespace) -> None:
 
     # 3. Configure GRPO
     max_steps = 2 if args.smoke_test else None
-    config = GRPOConfig(
+    try:
+        import torch as _torch
+        on_cpu = not _torch.cuda.is_available()
+    except Exception:
+        on_cpu = True
+
+    grpo_kwargs = dict(
         output_dir=args.output_dir,
         num_generations=args.num_generations,
         max_completion_length=args.max_completion_length,
@@ -318,16 +326,26 @@ def run_grpo_training(args: Namespace) -> None:
         max_steps=max_steps if max_steps else -1,
         report_to="none",
     )
+    if on_cpu:
+        # Recent TRL refuses to start with bf16/fp16 defaults if no GPU is
+        # present; we have to opt into CPU explicitly and turn mixed
+        # precision off so the smoke test works on a developer laptop.
+        grpo_kwargs.update(use_cpu=True, bf16=False, fp16=False)
+    config = GRPOConfig(**grpo_kwargs)
 
-    # 4. Create trainer
+    # 4. Create trainer (TRL renamed `config` -> `args` somewhere in 1.x;
+    # try both so this works against older and newer TRL releases.)
     print("\nCreating GRPO trainer")
-    trainer = GRPOTrainer(
+    trainer_kwargs = dict(
         model=model,
-        config=config,
         reward_funcs=[format_reward, reasoning_quality_reward, phase_appropriate_reward],
         train_dataset=dataset,
         processing_class=tokenizer,
     )
+    try:
+        trainer = GRPOTrainer(args=config, **trainer_kwargs)
+    except TypeError:
+        trainer = GRPOTrainer(config=config, **trainer_kwargs)
 
     # 5. Train
     print("\nStarting training...")

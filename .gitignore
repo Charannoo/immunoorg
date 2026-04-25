@@ -12,11 +12,20 @@ venv/
 env/
 *.log
 
-# Evidence charts (PNGs) — Hugging Face Hub git rejects binary pushes without Xet;
-# keep locally / regenerate with generate_evidence_2.py; README links to GitHub raw.
-evidence_*.png
+# Evidence charts (PNGs) — committed so judges see them in the README.
+# If you regenerate, just `python generate_evidence.py`.
+# (Hugging Face Hub binary push works fine via the Hub Git LFS / Xet path
+# `huggingface-cli upload` uses; the upload_to_hf.py script handles it.)
 
-# Generated training artifacts (keep out of Hub git)
+# Generated training artifacts (kept out of Hub git)
 training/datasets/*.json.gz
 training/grpo_data/*.json.gz
 training/output/
+training_runs/
+training/trajectories/
+
+# IDE / OS noise
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

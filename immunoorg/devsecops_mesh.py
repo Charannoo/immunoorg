@@ -117,9 +117,9 @@ class ASTInterceptor:
                         violations.append(SUSPICIOUS_AST_PATTERNS["os_system_call"])
 
                 # ── Hardcoded credentials ───────────────────────────────
-                if isinstance(node, ast.Constant) and isinstance(node.s, str):
+                if isinstance(node, ast.Constant) and isinstance(node.value, str):
                     for pattern in CREDENTIAL_PATTERNS:
-                        if pattern.search(node.s):
+                        if pattern.search(node.value):
                             violations.append(SUSPICIOUS_AST_PATTERNS["hardcoded_secret"])
                             break
 

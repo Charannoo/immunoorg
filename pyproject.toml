@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "immunoorg"
-version = "1.0.0"
-description = "ImmunoOrg: The Self-Healing Autonomous Enterprise — Dual-layer RL environment for cybersecurity + organizational dynamics"
+version = "2.0.0"
+description = "ImmunoOrg 2.0: The Autonomous, Self-Healing Enterprise — OpenEnv RL environment for cybersecurity + organizational dynamics"
 requires-python = ">=3.11"
 dependencies = [
     "openenv-core>=0.3.0",

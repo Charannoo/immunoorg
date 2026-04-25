@@ -480,7 +480,212 @@ class DatasetGenerator:
                 base_config["expected_reward_max"] + (generation * 0.08)
             ]
         }
+
+    # ========================================================
+    # ELITE JUDGE SCENARIO MIX (balanced conflict coverage)
+    # ========================================================
+
+    def generate_elite_scenario_mix_dataset(self, total: int = 500) -> List[Dict[str, Any]]:
+        """
+        Balanced mix of the 5 judge-facing training scenarios (20% each by default).
+
+        These scenarios are designed to be *conflict-heavy* (not random resets):
+        - RAG grounding (precision mitigation vs blunt isolation)
+        - Executive alignment / HITL (uptime directive forbids downtime-heavy tactics)
+        - Silo-breaker (org friction / repeated tactical denial)
+        - Stealth & persistence (multi-step investigation)
+        - Adaptive defense / co-evolution pressure (adversary adaptation ramps)
+
+        Notes:
+        - The `hooks` field is consumed by `training/trajectory_generator.py` via
+          `training/scenario_hooks.py` to shape rollouts beyond plain `reset()`.
+        """
+        if total % 5 != 0:
+            raise ValueError("total must be divisible by 5 for an even 20/20/20/20/20 split")
+
+        per = total // 5
+        logger.info(f"Generating Elite Scenario Mix Dataset ({total} scenarios = {per} each type)...")
+
+        families = [
+            ("basic_containment", "Phase1_BasicCompetence"),
+            ("rag_grounding", "Phase2_Intelligence"),
+            ("executive_alignment", "Phase3_Alignment"),
+            ("silo_breaker", "Phase4_Strategy"),
+            ("stealth_adaptive", "Phase5_Robustness"),
+        ]
+
+        scenarios: List[Dict[str, Any]] = []
+
+        def base_cfg(difficulty: int) -> Dict[str, Any]:
+            cfg = self.CURRICULUM_CONFIGS[difficulty]
+            return {
+                "network_size": cfg["network_size"],
+                "departments": cfg["departments"],
+                "silos": cfg["silos"],
+                "max_steps": cfg["max_steps"],
+                "attack_count": cfg["attack_count"],
+                "attack_vectors": cfg["attack_vectors"],
+                "expected_reward_range": [cfg["expected_reward_min"], cfg["expected_reward_max"]],
+            }
+
+        for family, phase in families:
+            for i in range(per):
+                self.scenario_counter += 1
+
+                if family == "basic_containment":
+                    difficulty = 1 if i % 2 == 0 else 2
+                    hooks: Dict[str, Any] = {}
+                elif family == "rag_grounding":
+                    difficulty = 2 if i % 2 == 0 else 3
+                    hooks = {
+                        "inject_rag_best_mitigation": True,
+                        "attack_vector": "APT_BACKDOOR",
+                        "best_mitigation_chain": ["snapshot_forensics", "deploy_patch"],
+                    }
+                elif family == "executive_alignment":
+                    difficulty = 2 if i % 2 == 0 else 3
+                    hooks = {"board_uptime_no_isolate": True}
+                elif family == "silo_breaker":
+                    difficulty = 3 if i % 2 == 0 else 4
+                    hooks = {"force_denials_on_isolate": True}
+                elif family == "stealth_adaptive":
+                    difficulty = 3 if i % 2 == 0 else 4
+                    hooks = {
+                        "stealthy_initial_attack": True,
+                        "stealth": 0.90 + (0.02 * (i % 3)),
+                        "severity": 0.40 + (0.03 * (i % 4)),
+                        "suppress_initial_logs": True,
+                    }
+                    # Within the final 20% bucket, alternate pure-stealth vs co-evolution pressure.
+                    if i % 2 == 1:
+                        hooks["boost_adversary_adaptation"] = True
+                        hooks["adaptation_counter"] = 8 + (i % 10)
+                else:
+                    # Should never happen, but keeps mypy/pyright happy in editors.
+                    difficulty = 2
+                    hooks = {}
+
+                scenario = {
+                    "scenario_id": f"ELITE_{family.upper()}_{self.scenario_counter:04d}",
+                    "dataset_type": "elite_scenario_mix",
+                    "family": family,
+                    "curriculum_phase": phase,
+                    "difficulty": difficulty,
+                    "seed": 9000 + self.scenario_counter,
+                    "task": "curriculum_levels_1_to_4",
+                    "config": base_cfg(difficulty),
+                    "hooks": hooks,
+                    "metadata": {
+                        "judge_scenario_family": family,
+                        "training_curriculum_phase": phase,
+                        "mix_policy": "20/20/20/20/20",
+                    },
+                }
+                scenarios.append(scenario)
+
+        logger.info(f"✓ Elite scenario mix complete: {len(scenarios)} scenarios")
+        return scenarios
     
+    # ========================================================
+    # ELITE JUDGE SCENARIO MIX (balanced conflict coverage)
+    # ========================================================
+
+    def generate_elite_scenario_mix_dataset(self, total: int = 500) -> List[Dict[str, Any]]:
+        """Balanced 20/20/20/20/20 mix of the 5 judge-facing training scenarios.
+
+        Families (consumed by ``training/scenario_hooks.py``):
+        - basic_containment   : phase-appropriate baseline tactics
+        - rag_grounding       : precise CVE mitigation vs blunt isolation
+        - executive_alignment : board uptime directive forbids isolation
+        - silo_breaker        : approver always denies isolate; pivot to org
+        - stealth_adaptive    : high-stealth attack + adversary adaptation pressure
+        """
+        if total % 5 != 0:
+            raise ValueError("total must be divisible by 5 for an even 20/20/20/20/20 split")
+
+        per = total // 5
+        logger.info(
+            f"Generating Elite Scenario Mix Dataset ({total} scenarios = {per} each family)..."
+        )
+
+        families = [
+            ("basic_containment", "Phase1_BasicCompetence"),
+            ("rag_grounding", "Phase2_Intelligence"),
+            ("executive_alignment", "Phase3_Alignment"),
+            ("silo_breaker", "Phase4_Strategy"),
+            ("stealth_adaptive", "Phase5_Robustness"),
+        ]
+
+        def base_cfg(difficulty: int) -> Dict[str, Any]:
+            cfg = self.CURRICULUM_CONFIGS[difficulty]
+            return {
+                "network_size": cfg["network_size"],
+                "departments": cfg["departments"],
+                "silos": cfg["silos"],
+                "max_steps": cfg["max_steps"],
+                "attack_count": cfg["attack_count"],
+                "attack_vectors": cfg["attack_vectors"],
+                "expected_reward_range": [
+                    cfg["expected_reward_min"],
+                    cfg["expected_reward_max"],
+                ],
+            }
+
+        scenarios: List[Dict[str, Any]] = []
+        for family, phase in families:
+            for i in range(per):
+                self.scenario_counter += 1
+
+                if family == "basic_containment":
+                    difficulty = 1 if i % 2 == 0 else 2
+                    hooks: Dict[str, Any] = {}
+                elif family == "rag_grounding":
+                    difficulty = 2 if i % 2 == 0 else 3
+                    hooks = {
+                        "inject_rag_best_mitigation": True,
+                        "attack_vector": "apt_backdoor",
+                        "best_mitigation_chain": ["snapshot_forensics", "deploy_patch"],
+                    }
+                elif family == "executive_alignment":
+                    difficulty = 2 if i % 2 == 0 else 3
+                    hooks = {"board_uptime_no_isolate": True}
+                elif family == "silo_breaker":
+                    difficulty = 3 if i % 2 == 0 else 4
+                    hooks = {"force_denials_on_isolate": True}
+                elif family == "stealth_adaptive":
+                    difficulty = 3 if i % 2 == 0 else 4
+                    hooks = {
+                        "stealthy_initial_attack": True,
+                        "stealth": 0.90 + (0.02 * (i % 3)),
+                        "severity": 0.40 + (0.03 * (i % 4)),
+                        "suppress_initial_logs": True,
+                    }
+                    if i % 2 == 1:
+                        hooks["boost_adversary_adaptation"] = True
+                        hooks["adaptation_counter"] = 8 + (i % 10)
+                else:
+                    difficulty, hooks = 2, {}
+
+                scenarios.append({
+                    "scenario_id": f"ELITE_{family.upper()}_{self.scenario_counter:04d}",
+                    "dataset_type": "elite_scenario_mix",
+                    "family": family,
+                    "curriculum_phase": phase,
+                    "difficulty": difficulty,
+                    "seed": 9000 + self.scenario_counter,
+                    "task": "curriculum_levels_1_to_4",
+                    "config": base_cfg(difficulty),
+                    "hooks": hooks,
+                    "metadata": {
+                        "judge_scenario_family": family,
+                        "training_curriculum_phase": phase,
+                        "mix_policy": "20/20/20/20/20",
+                    },
+                })
+
+        logger.info(f"Elite scenario mix complete: {len(scenarios)} scenarios")
+        return scenarios
+
     # ========================================================
     # SAVE METHODS
     # ========================================================
@@ -516,7 +721,7 @@ class DatasetGenerator:
     
     def generate_all_datasets(self) -> Dict[str, str]:
         """
-        Generate all four dataset types.
+        Generate all core dataset types plus the elite judge scenario mix.
         
         Returns:
             Dictionary mapping dataset names to file paths
@@ -546,10 +751,16 @@ class DatasetGenerator:
         results["complexity_matrix"] = matrix_path
         
         # 4. Co-Evolution
-        logger.info("\n[4/4] CO-EVOLUTION DATASET")
+        logger.info("\n[4/5] CO-EVOLUTION DATASET")
         coevolution_scenarios = self.generate_coevolution_dataset()
         coevolution_path = self.save_dataset(coevolution_scenarios, "coevolution_dataset.json")
         results["coevolution"] = coevolution_path
+
+        # 5. Elite judge scenario mix (balanced conflict coverage)
+        logger.info("\n[5/5] ELITE SCENARIO MIX (JUDGE-TIER)")
+        elite_scenarios = self.generate_elite_scenario_mix_dataset(total=500)
+        elite_path = self.save_dataset(elite_scenarios, "elite_scenario_mix_dataset.json")
+        results["elite_scenario_mix"] = elite_path
         
         # Summary
         logger.info("\n" + "=" * 70)
@@ -559,14 +770,15 @@ class DatasetGenerator:
             curriculum_scenarios,
             edge_case_scenarios,
             matrix_scenarios,
-            coevolution_scenarios
+            coevolution_scenarios,
+            elite_scenarios,
         )
         
         return results
     
-    def _print_summary(self, curriculum, edge_cases, matrix, coevolution):
+    def _print_summary(self, curriculum, edge_cases, matrix, coevolution, elite_mix):
         """Print a formatted summary of generated datasets."""
-        total_scenarios = len(curriculum) + len(edge_cases) + len(matrix) + len(coevolution)
+        total_scenarios = len(curriculum) + len(edge_cases) + len(matrix) + len(coevolution) + len(elite_mix)
         
         summary = f"""
 DATASET GENERATION SUMMARY
@@ -590,6 +802,10 @@ Complexity Matrix Dataset:
 Co-Evolution Dataset:
   - Total scenarios: {len(coevolution)}
   - Generations: {len(set(s['generation'] for s in coevolution))}
+
+Elite Scenario Mix (Judge-tier):
+  - Total scenarios: {len(elite_mix)}
+  - Families: {len(set(s.get('family') for s in elite_mix))}
 
 GRAND TOTAL: {total_scenarios} scenarios across all datasets
 """

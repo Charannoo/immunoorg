@@ -132,7 +132,7 @@ python demo_runner.py
 python visualization/dashboard.py
 
 # Generate evidence
-python generate_evidence_2.py
+python generate_evidence.py
 ```
 
 **HuggingFace Space**: https://huggingface.co/spaces/hirann/immunoorg-2

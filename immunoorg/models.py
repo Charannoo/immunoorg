@@ -169,6 +169,10 @@ class Attack(BaseModel):
     lateral_path: list[str] = Field(default_factory=list)
     damage_dealt: float = 0.0
     stealth: float = Field(0.5, ge=0.0, le=1.0)
+    # LLM-driven adversary attaches plan metadata here (rationale, plan_id,
+    # success probability, stages). Keep it permissive so simulator code
+    # can introspect optional fields without forcing schema churn.
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 # === ORGANIZATIONAL LAYER ===
