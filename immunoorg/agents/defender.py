@@ -150,8 +150,16 @@ def format_observation_for_llm(observation: dict) -> str:
     # Alerts
     alerts = observation.get("alerts", [])
     if alerts:
-        parts.append("\n## Alerts")
+        parts.append("\n## Alerts & Intelligence")
         for alert in alerts:
             parts.append(f"  🔔 {alert}")
-
+    
+    # Board Directives
+    directives = observation.get("directives", [])
+    if directives:
+        parts.append("\n## 👔 Board Directives (MUST FOLLOW)")
+        for d in directives:
+            parts.append(f"  📌 {d}")
+    
     return "\n".join(parts)
+

@@ -7,6 +7,7 @@ OpenEnv Environment subclass orchestrating the dual-layer simulation.
 import random
 import uuid
 import logging
+import json
 from typing import Any
 
 try:
@@ -34,7 +35,9 @@ from immunoorg.self_improvement import SelfImprovementEngine
 # ImmunoOrg 2.0 modules
 from immunoorg.war_room import WarRoom
 from immunoorg.devsecops_mesh import DevSecOpsMesh
+from immunoorg.knowledge_base import CVEKnowledgeBase
 from immunoorg.migration_engine import MigrationEngine
+
 from immunoorg.executive_context import ExecutiveContextEngine
 
 
@@ -61,6 +64,7 @@ class ImmunoOrgEnvironment(OpenEnvEnvironment):
         self.devsecops_mesh: DevSecOpsMesh = DevSecOpsMesh(seed=seed)
         self.migration_engine: MigrationEngine = MigrationEngine(rng=self.rng)
         self.executive_context: ExecutiveContextEngine = ExecutiveContextEngine(rng=self.rng)
+        self.knowledge_base: CVEKnowledgeBase = CVEKnowledgeBase()
         # 2.0 per-step state
         self._last_war_room_turns: int = 0
         self._last_pipeline_integrity: float = 1.0
@@ -130,6 +134,10 @@ class ImmunoOrgEnvironment(OpenEnvEnvironment):
         """Process one step."""
         self._state.step_count += 1
         self._state.sim_time += 1.0
+        
+        # Record reasoning trace
+        self.record_reasoning(action)
+        
         threats_before = len(self.attacks.get_active_attacks())
 
         # 1. Process the action
@@ -252,33 +260,65 @@ class ImmunoOrgEnvironment(OpenEnvEnvironment):
                 total_reward=self._state.cumulative_reward,
                 mutations=[],
             )
+            
+            # Co-Evolution: evolve adversary based on improvement rate
+            if self.attacks:
+                self.attacks.evolve_adversary_complexity(self.self_improvement.state.improvement_rate)
 
         obs = self._build_observation(result, success)
         return obs, reward, terminated
 
+    def record_reasoning(self, action: ImmunoAction) -> None:
+        """Create a reasoning trace for the action taken."""
+        from immunoorg.models import ReasoningTrace
+        
+        # In a real LLM agent, we'd ask the LLM to provide the 'trigger' separately
+        # Here we simulate it by extracting keywords from the reasoning
+        trigger = "Observation-based"
+        snippet = "General environment state"
+        
+        if "scan" in action.reasoning.lower():
+            trigger = "Need more info"
+            snippet = "Low confidence in current state"
+        elif "isolate" in action.reasoning.lower():
+            trigger = "Containment priority"
+            snippet = "Active threat detected on target node"
+        elif "merge" in action.reasoning.lower() or "shortcut" in action.reasoning.lower():
+            trigger = "Structural flaw"
+            snippet = "Silo detected between departments"
+            
+        trace = ReasoningTrace(
+            step=self._state.step_count,
+            decision_trigger=trigger,
+            observation_snippet=snippet,
+            rationale=action.reasoning,
+            timestamp=self._state.sim_time,
+        )
+        self._state.reasoning_traces.append(trace)
+
     def _execute_action(self, action: ImmunoAction) -> tuple[str, bool]:
         """Execute the agent's action and return (result_description, success)."""
         action_name = self._get_action_name(action)
-
+        
         # Diagnostic actions don't need approval
         if action.action_type == ActionType.DIAGNOSTIC:
             return self._execute_diagnostic(action)
-
+        
         # 2.0: Migration and honeypot actions are always pre-authorized (CISO authority)
         if action.tactical_action in (TacticalAction.START_MIGRATION, TacticalAction.DEPLOY_HONEYPOT):
             return self._execute_direct(action)
-
+        
         # Check if approval needed
         if not self.permissions.needs_approval(action_name):
             return self._execute_direct(action)
-
+        
         # Find requesting department — pick the dept that owns the target node, or security
         requester = "dept-security"
         for dept in self.org.get_all_nodes():
             if dept.active and action.target in dept.technical_nodes_owned:
                 requester = dept.id
                 break
-
+        
         req = self.permissions.request_approval(
             action_name=action_name,
             action_type=action.action_type,
@@ -288,7 +328,7 @@ class ImmunoOrgEnvironment(OpenEnvEnvironment):
             sim_time=self._state.sim_time,
             justification=action.reasoning,
         )
-
+        
         # Immediate check — also try processing pending right away at high threat
         if req.status == ApprovalStatus.APPROVED:
             return self._execute_direct(action)
@@ -304,6 +344,7 @@ class ImmunoOrgEnvironment(OpenEnvEnvironment):
             if self._state.threat_level >= 0.4:
                 return self._execute_direct(action)
             return f"Action '{action_name}' submitted for approval. Waiting...", False
+
 
     def _execute_direct(self, action: ImmunoAction) -> tuple[str, bool]:
         """Execute an action that has been approved or doesn't need approval."""
@@ -530,6 +571,11 @@ class ImmunoOrgEnvironment(OpenEnvEnvironment):
             return True
         return False
 
+    def inject_directive(self, directive: str) -> None:
+        """Inject a board directive mid-simulation."""
+        self._state.directives.append(directive)
+        logging.info(f"Board Directive Injected: {directive}")
+
     def _build_observation(self, action_result: str, action_success: bool) -> ImmunoObservation:
         compromised_ids = {n.id for n in self.network.get_compromised_nodes()}
         visible_nodes = []
@@ -545,21 +591,31 @@ class ImmunoOrgEnvironment(OpenEnvEnvironment):
                     # Agent detects this compromised node
                     visible_nodes.append(n)
                 # else: node is hidden — fog of war
-
+        
         detected = [a for a in self.attacks.get_active_attacks()
                      if self.rng.random() < 0.4 + (1 - a.stealth) * 0.6]
-
+        
+        # RAG Integration: Retrieve real-world CVE info for detected attacks
+        rag_info = []
+        if self.knowledge_base and detected:
+            for atk in detected:
+                info = self.knowledge_base.retrieve_cve_info(atk.vector.value)
+                rag_info.append(f"Threat {atk.id} ({atk.vector.value}): {info}")
+        
         recent_logs = []
         for n in self.network.get_all_nodes():
             recent_logs.extend(n.logs[-3:])
         recent_logs.sort(key=lambda l: l.timestamp, reverse=True)
-
+        
         alerts = []
         if self._state.threat_level > 0.7:
             alerts.append(f"HIGH THREAT: Level {self._state.threat_level:.2f}")
         if self.permissions.pending:
             alerts.append(f"{len(self.permissions.pending)} approval(s) pending")
-
+        
+        # Add RAG info to alerts
+        alerts.extend(rag_info)
+        
         return ImmunoObservation(
             visible_nodes=visible_nodes,
             visible_edges=self.network.get_all_edges(),
@@ -579,4 +635,6 @@ class ImmunoOrgEnvironment(OpenEnvEnvironment):
             system_downtime=self._state.total_downtime,
             belief_map_feedback=self.belief_map.generate_feedback() if self._state.step_count % 5 == 0 else "",
             alerts=alerts,
+            directives=self._state.directives,
         )
+

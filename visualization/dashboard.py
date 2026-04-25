@@ -20,17 +20,21 @@ from immunoorg.models import (
     ImmunoAction, ActionType, TacticalAction, StrategicAction, DiagnosticAction,
     PreferenceInjection,
 )
+from immunoorg.agents.llm_agent import ImmunoDefenderAgent
 from visualization.metrics import (
     plot_improvement_trajectory, plot_curriculum_progress,
     plot_belief_accuracy_convergence, plot_reward_breakdown,
 )
 
+
 # Global state
 env: ImmunoOrgEnvironment | None = None
+agent: ImmunoDefenderAgent | None = None
 episode_log: list[dict] = []
 belief_accuracy_history: list[float] = []
 war_room_log: list[str] = []  # War room transcript lines
 pipeline_event_log: list[dict] = []  # Mesh gate events
+
 
 
 def build_network_graph_viz() -> go.Figure:
@@ -155,11 +159,13 @@ def build_org_graph_viz() -> go.Figure:
 
 
 def reset_env(difficulty: int) -> tuple:
-    global env, episode_log, belief_accuracy_history
+    global env, episode_log, belief_accuracy_history, agent
     env = ImmunoOrgEnvironment(difficulty=int(difficulty), seed=42)
+    agent = ImmunoDefenderAgent(seed=42)
     obs = env.reset()
     episode_log = []
     belief_accuracy_history = []
+
 
     status = f"✅ Episode started | Difficulty: {difficulty} | Phase: {obs.current_phase.value}"
     net_fig = build_network_graph_viz()
@@ -168,13 +174,23 @@ def reset_env(difficulty: int) -> tuple:
     return status, net_fig, org_fig, obs_text, "0.00", "0.000"
 
 
-def take_action(action_type: str, action_name: str, target: str, reasoning: str) -> tuple:
+def take_action(action_type: str, action_name: str, target: str, reasoning: str, autonomous: bool) -> tuple:
     global episode_log, belief_accuracy_history, war_room_log, pipeline_event_log
     if not env:
         return "❌ Environment not initialized", None, None, "", "0.00", "0.000", "", ""
-
-    action = build_action(action_type, action_name, target, reasoning)
+    
+    if autonomous and agent:
+        # Use the LLM Agent to decide
+        obs_before = env.reset() if env.state.step_count == 0 else env._build_observation("Continuing", True)
+        action = agent.act(obs_before)
+        # Update UI inputs to reflect agent's decision
+        # Note: Gradio doesn't allow modifying inputs directly from a function easily, 
+        # but we can return the updated values if we add them to outputs.
+    else:
+        action = build_action(action_type, action_name, target, reasoning)
+    
     obs, reward, terminated = env.step(action)
+
 
     acc = env.belief_map.calculate_belief_accuracy() if env.belief_map else 0.0
     belief_accuracy_history.append(acc)
@@ -209,7 +225,23 @@ def take_action(action_type: str, action_name: str, target: str, reasoning: str)
     return status, net_fig, org_fig, obs_text, threat, cum_reward, war_room_text, pipeline_text
 
 
-def format_pipeline_log() -> str:
+def build_reasoning_heatmap() -> str:
+    """Format reasoning traces as a 'heatmap' of triggers."""
+    if not env:
+        return "No environment initialized."
+    traces = env.state.reasoning_traces
+    if not traces:
+        return "No reasoning traces recorded yet."
+    
+    lines = ["### 🧠 Reasoning Heatmap (Decision Triggers)", 
+             "| Step | Trigger | Observation Snippet | Rationale |",
+             "| :--- | :--- | :--- | :--- |"]
+    
+    for t in traces[-10:]:
+        color = "🔴" if "Containment" in t.decision_trigger else "🔵" if "Structural" in t.decision_trigger else "🟢"
+        lines.append(f"| {t.step} | {color} {t.decision_trigger} | *{t.observation_snippet}* | {t.rationale[:100]}... |")
+    
+    return "\n".join(lines)
     if not pipeline_event_log:
         return "No pipeline events yet."
     lines = []
@@ -217,6 +249,14 @@ def format_pipeline_log() -> str:
         icon = "🚫" if evt["severity"] == "blocked" else ("⚠️" if evt["severity"] == "warned" else ("🔧" if evt["severity"] == "sanitized" else "✅"))
         lines.append(f"{icon} [{evt['gate']}] {evt['threat']} | score:{evt['score']} | {evt['summary']}")
     return "\n".join(lines)
+
+
+def inject_board_directive(directive: str) -> tuple:
+    if not env:
+        return "❌ Environment not initialized", "No active directives"
+    env.inject_directive(directive)
+    directives_text = "\n".join([f"- {d}" for d in env.state.directives]) or "No active directives"
+    return f"✅ Directive Injected: {directive}", directives_text
 
 
 def inject_preference(directive: str, priority: str) -> str:
@@ -353,16 +393,19 @@ def build_dashboard():
 
         # ── Control Panel ──────────────────────────────────────────────
         with gr.Row():
-            with gr.Column(scale=1):
+        with gr.Column(scale=1):
                 gr.Markdown("### 🎮 Control Panel")
                 difficulty = gr.Slider(1, 4, value=1, step=1, label="Difficulty Level")
                 reset_btn = gr.Button("🔄 Reset Episode", variant="primary")
-
+                
+                autonomous_mode = gr.Checkbox(label="🤖 Autonomous Patronus Mode", value=False)
+                
                 action_type = gr.Radio(["tactical", "strategic", "diagnostic"], value="tactical", label="Action Type")
                 action_name = gr.Dropdown(all_actions, label="Action", value="scan_logs")
                 target = gr.Textbox(label="Target (node/dept ID)", value="")
                 reasoning = gr.Textbox(label="Reasoning", lines=2, value="Investigating the situation.")
                 step_btn = gr.Button("▶️ Execute Action", variant="primary")
+
 
             with gr.Column(scale=2):
                 obs_display = gr.Markdown(label="Observation")
@@ -390,6 +433,29 @@ def build_dashboard():
                 )
                 inject_btn = gr.Button("⚡ Inject Board Directive", variant="stop")
                 inject_status = gr.Textbox(label="Injection Status", interactive=False)
+
+        # ── CEO Dashboard — Board Directives ──────────────────────────────
+        gr.Markdown("---")
+        gr.Markdown("### 👔 CEO Dashboard — Board Directives")
+        gr.Markdown("*Inject high-level constraints that the Defender agent must follow*")
+        with gr.Row():
+            with gr.Column(scale=1):
+                ceo_directive = gr.Textbox(
+                    label="New Board Directive", 
+                    placeholder="e.g., 'Emergency: All budgets cut by 50%, maintain 100% uptime for DB'"
+                )
+                ceo_inject_btn = gr.Button("📢 Broadcast Directive", variant="primary")
+                ceo_inject_status = gr.Textbox(label="Broadcast Status", interactive=False)
+            with gr.Column(scale=2):
+                active_directives = gr.Markdown("No active directives.")
+
+        # ── Reasoning Heatmap — Interpretability ────────────────────────────
+        gr.Markdown("---")
+        gr.Markdown("### 🧬 Reasoning Heatmap — Interpretability")
+        gr.Markdown("*Visualizing the agent's internal decision triggers and rationale*")
+        with gr.Row():
+            reasoning_display = gr.Markdown("No reasoning traces recorded yet.")
+            refresh_reasoning_btn = gr.Button("🔄 Refresh Reasoning Heatmap")
 
         # ── CI/CD Pipeline Gate View ────────────────────────────────────
         gr.Markdown("---")
@@ -466,13 +532,21 @@ def build_dashboard():
             outputs=[status_box, network_plot, org_plot, obs_display, threat_box, reward_box]
         )
         step_btn.click(
-            take_action, inputs=[action_type, action_name, target, reasoning],
+            take_action, inputs=[action_type, action_name, target, reasoning, autonomous_mode],
             outputs=[status_box, network_plot, org_plot, obs_display,
                      threat_box, reward_box, war_room_feed, pipeline_feed]
         )
+
         inject_btn.click(
             inject_preference, inputs=[pref_directive, pref_priority],
             outputs=[inject_status]
+        )
+        ceo_inject_btn.click(
+            inject_board_directive, inputs=[ceo_directive],
+            outputs=[ceo_inject_status, active_directives]
+        )
+        refresh_reasoning_btn.click(
+            build_reasoning_heatmap, outputs=[reasoning_display]
         )
         metrics_btn.click(
             get_metrics_plots, outputs=[belief_plot, reward_plot]

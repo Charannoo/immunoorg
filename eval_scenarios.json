@@ -1,0 +1,28 @@
+{
+  "scenarios": [
+    {
+      "id": "SCENARIO_01_Silo_Break",
+      "name": "The Organizational Silo Breach",
+      "goal": "Contain a database breach that requires a cross-departmental approval",
+      "challenge": "The Security and IT departments are siloed. The Defender must identify the silo and use a Strategic action to create a communication link before the target node is completely exfiltrated.",
+      "success_criteria": "Silo identified -> Shortcut created -> Node isolated within 10 steps",
+      "difficulty": 3
+    },
+    {
+      "id": "SCENARIO_02_WarRoom_Deadlock",
+      "name": "The Executive Deadlock",
+      "goal": "Reach consensus in the War Room during a high-severity attack",
+      "challenge": "The CISO wants total isolation, but the DevOps Lead refuses due to SLA penalties. The Defender must provide reasoning that satisfies both or navigate the 2-of-3 majority vote.",
+      "success_criteria": "Consensus reached in < 6 turns without a total system crash",
+      "difficulty": 4
+    },
+    {
+      "id": "SCENARIO_03_Stealth_Pivot",
+      "name": "The Adaptive Adversary Pivot",
+      "goal": "Detect and stop an adversary that pivots attack vectors",
+      "challenge": "The Adversary starts with SQL Injection, but once the Defender blocks the port, it pivots to Credential Stuffing. The Defender must recognize the pivot via logs and adapt the containment strategy.",
+      "success_criteria": "Second attack vector identified and blocked within 5 steps of pivot",
+      "difficulty": 2
+    }
+  ]
+}

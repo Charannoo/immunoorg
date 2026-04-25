@@ -288,8 +288,17 @@ class AttackEngine:
     def get_active_attacks(self) -> list[Attack]:
         return [a for a in self.active_attacks if not a.contained]
 
-    def get_total_damage(self) -> float:
-        return sum(a.damage_dealt for a in self.active_attacks)
+    def evolve_adversary_complexity(self, improvement_rate: float) -> str:
+        """
+        Increase attack complexity based on defender improvement rate.
+        Self-Play / Co-Evolution mechanism.
+        """
+        if improvement_rate > 0.1:
+            old_diff = self.difficulty
+            self.difficulty = min(4, self.difficulty + 1)
+            if old_diff != self.difficulty:
+                return f"⚠️ Adversary evolved! Difficulty increased: {old_diff} → {self.difficulty}"
+        return "Adversary stable."
     
     def get_adversary_rationale(self) -> str:
         """Get the reasoning behind the adversary's current strategy."""

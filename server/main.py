@@ -193,6 +193,15 @@ async def step(req: ImmunoOrgAction | StepEnvelope):
     return _step_response(obs, reward=reward, done=done)
 
 
+class DirectiveRequest(BaseModel):
+    directive: str
+
+@app.post("/directive")
+async def inject_directive(req: DirectiveRequest):
+    env = _get_env()
+    env.inject_directive(req.directive)
+    return {"status": "success", "directive": req.directive}
+
 @app.get("/state")
 async def state():
     env = _get_env()
@@ -216,7 +225,9 @@ async def state():
         "pipeline_integrity": env._last_pipeline_integrity,
         "war_room_debates": len(env.war_room.debate_history) if env.war_room else 0,
         "patronus_score": env.executive_context.get_patronus_score() if env.executive_context else 0.5,
+        "reasoning_traces": [t.model_dump() for t in s.reasoning_traces],
     }
+
 
 
 @app.get("/openenv.yaml")

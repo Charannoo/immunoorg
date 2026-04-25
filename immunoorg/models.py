@@ -270,6 +270,17 @@ class ImmunoObservation(BaseModel):
     system_downtime: float = 0.0
     belief_map_feedback: str = ""
     alerts: list[str] = Field(default_factory=list)
+    directives: list[str] = Field(default_factory=list)
+
+class ReasoningTrace(BaseModel):
+    """Detailed trace of an agent's reasoning for a specific action."""
+    action_id: str = Field(default_factory=lambda: str(uuid.uuid4())[:8])
+    step: int = 0
+    decision_trigger: str = ""  # e.g., "Observation: alert[0] indicated SQLi"
+    observation_snippet: str = "" # The exact part of the observation that triggered the decision
+    rationale: str = ""
+    confidence: float = Field(0.5, ge=0.0, le=1.0)
+    timestamp: float = 0.0
 
 class ImmunoState(BaseModel):
     """Full environment state (server-side)."""
@@ -300,6 +311,8 @@ class ImmunoState(BaseModel):
     self_improvement_generation: int = 0
     cumulative_reward: float = 0.0
     partial_rewards: list[dict[str, float]] = Field(default_factory=list)
+    directives: list[str] = Field(default_factory=list)
+    reasoning_traces: list[ReasoningTrace] = Field(default_factory=list)
     terminated: bool = False
     truncated: bool = False
     termination_reason: str = ""
