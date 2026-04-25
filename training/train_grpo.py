@@ -219,7 +219,7 @@ def main():
     parser = argparse.ArgumentParser(description="Train ImmunoOrg defender agent with GRPO")
     parser.add_argument("--smoke-test", action="store_true", help="Quick test with 2 steps")
     parser.add_argument("--warm-start", action="store_true", help="Warm-start using golden trajectories (SFT)")
-    parser.add_argument("--model", default="Qwen/Qwen2.5-7B-Instruct", help="Base model")
+    parser.add_argument("--model", default="Qwen/Qwen2.5-0.5B-Instruct", help="Base model")
     parser.add_argument("--output-dir", default="./immunoorg-defender", help="Output directory")
     parser.add_argument("--epochs", type=int, default=3, help="Training epochs")
     parser.add_argument("--batch-size", type=int, default=2, help="Per-device batch size")
@@ -237,21 +237,21 @@ def main():
     try:
         from unsloth import FastLanguageModel
         HAS_UNSLOTH = True
-        print("✅ Unsloth detected — using optimized training")
+        print("Check: Unsloth detected - using optimized training")
     except ImportError:
         HAS_UNSLOTH = False
-        print("⚠️ Unsloth not found — using standard HF training")
+        print("Warning: Unsloth not found - using standard HF training")
 
     try:
         from trl import GRPOTrainer, GRPOConfig
         from datasets import Dataset
-        print("✅ TRL and datasets loaded")
+        print("Check: TRL and datasets loaded")
     except ImportError:
-        print("❌ TRL not installed. Run: pip install trl datasets")
+        print("Error: TRL not installed. Run: pip install trl datasets")
         sys.exit(1)
 
     # 1. Load model
-    print(f"\n📦 Loading model: {args.model}")
+    print("\nLoading model: {args.model}")
     if HAS_UNSLOTH:
         model, tokenizer = FastLanguageModel.from_pretrained(
             args.model,
@@ -275,7 +275,7 @@ def main():
         tokenizer.pad_token = tokenizer.eos_token
 
     # 2. Build dataset
-    print("\n📊 Building training dataset")
+    print("\nBuilding training dataset")
     scenarios = build_training_prompts()
     dataset = Dataset.from_list([{"prompt": s["prompt"]} for s in scenarios])
     print(f"   {len(dataset)} scenarios loaded")
@@ -297,7 +297,7 @@ def main():
     )
 
     # 4. Create trainer
-    print("\n🏋️ Creating GRPO trainer")
+    print("\nCreating GRPO trainer")
     trainer = GRPOTrainer(
         model=model,
         config=config,
@@ -307,14 +307,14 @@ def main():
     )
 
     # 5. Train
-    print("\n🚀 Starting training...")
+    print("\nStarting training...")
     trainer.train()
 
     # 6. Save
-    print(f"\n💾 Saving model to {args.output_dir}")
+    print(f"\nSaving model to {args.output_dir}")
     trainer.save_model(args.output_dir)
     tokenizer.save_pretrained(args.output_dir)
-    print("✅ Training complete!")
+    print("Training complete!")
 
 
 if __name__ == "__main__":

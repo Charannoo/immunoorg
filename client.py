@@ -17,7 +17,7 @@ from openenv.core import EnvClient
 from server.main import ImmunoOrgAction, ImmunoOrgObservation
 
 
-class ImmunoOrgEnv(EnvClient[ImmunoOrgAction, ImmunoOrgObservation]):
+class ImmunoOrgEnv(EnvClient[ImmunoOrgAction, ImmunoOrgObservation, dict]):
     """OpenEnv client for ImmunoOrg."""
 
     action_type = ImmunoOrgAction
