@@ -3,6 +3,8 @@ Permission Flow Engine
 ======================
 The critical linkage between Technical and Organizational layers.
 Every tactical action requires authorization flowing through the Org Graph.
+
+ImmunoOrg 2.0 - Phase 2: Integrated with Dynamic Trust System
 """
 
 from __future__ import annotations
@@ -47,13 +49,23 @@ NO_APPROVAL_ACTIONS = {"scan_logs", "escalate_alert", "query_belief_map", "corre
 
 
 class PermissionFlowEngine:
-    """Routes approval requests through the org graph and simulates bureaucratic delays."""
+    """Routes approval requests through the org graph and simulates bureaucratic delays.
+    
+    ImmunoOrg 2.0: Integrated with Dynamic Trust System for trust decay/recovery.
+    """
 
-    def __init__(self, org_graph: OrgGraph, seed: int | None = None):
+    def __init__(self, org_graph: OrgGraph, seed: int | None = None, enable_dynamic_trust: bool = False):
         self.org = org_graph
         self.rng = random.Random(seed)
         self.pending: list[ApprovalRequest] = []
         self.completed: list[ApprovalRequest] = []
+        self.enable_dynamic_trust = enable_dynamic_trust
+        
+        # Optional: integrate with dynamic trust engine
+        self.trust_engine = None
+        if enable_dynamic_trust:
+            from immunoorg.org_dynamics import DynamicOrgDynamicsEngine
+            self.trust_engine = DynamicOrgDynamicsEngine(seed=seed)
 
     def needs_approval(self, action_name: str) -> bool:
         """Check if an action needs organizational approval."""
@@ -135,10 +147,30 @@ class PermissionFlowEngine:
                 req.resolved_at = sim_time
                 resolved.append(req)
                 self.completed.append(req)
+                
+                # Record trust event if using dynamic trust
+                if self.trust_engine:
+                    severity = 1.0 - (req.urgency * 0.2)  # High urgency = lower impact
+                    if decision == ApprovalStatus.APPROVED:
+                        self.trust_engine.record_approval_granted(
+                            req.requester, req.approver, severity, sim_time
+                        )
+                    else:
+                        reason = f"Request for {req.action_name} was {decision.value.lower()}"
+                        self.trust_engine.record_approval_denied(
+                            req.requester, req.approver, reason, severity, sim_time
+                        )
             else:
                 still_pending.append(req)
 
         self.pending = still_pending
+        
+        # Update trust dynamics if enabled
+        if self.trust_engine:
+            self.trust_engine.apply_trust_dynamics(
+                self.org.get_all_edges(), self.org.nodes, sim_time
+            )
+        
         return resolved
 
     def _evaluate_approval(
@@ -195,3 +227,9 @@ class PermissionFlowEngine:
             return 0.0
         denied = sum(1 for r in self.completed if r.status == ApprovalStatus.DENIED)
         return denied / len(self.completed)
+    
+    def get_trust_report(self) -> dict[str, Any]:
+        """Get trust dynamics report (if enabled)."""
+        if self.trust_engine:
+            return self.trust_engine.get_trust_report()
+        return {"enabled": False}
