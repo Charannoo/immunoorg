@@ -16,19 +16,22 @@ class LLMClient:
     Falls back to mock if no API key is provided.
     """
     
-    def __init__(self, provider: str = "openai", fallback_to_mock: bool = True):
+    def __init__(self, provider: str = "openai", model_path: str | None = None, fallback_to_mock: bool = True):
         """
         Initialize the LLM client.
         
         Args:
             provider: "openai" or "anthropic"
+            model_path: Path to trained HF weights (e.g., "username/immunoorg-patronus-rl")
             fallback_to_mock: If True and no API key found, use mock LLM
         """
         self.provider = provider.lower()
+        self.model_path = model_path # Store the path to trained weights
         self.fallback_to_mock = fallback_to_mock
         self.api_key = None
         self.model = None
         self.use_mock = False
+
         
         if self.provider == "openai":
             self.api_key = os.environ.get("OPENAI_API_KEY")

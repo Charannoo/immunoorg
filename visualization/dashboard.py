@@ -161,10 +161,16 @@ def build_org_graph_viz() -> go.Figure:
 def reset_env(difficulty: int) -> tuple:
     global env, episode_log, belief_accuracy_history, agent
     env = ImmunoOrgEnvironment(difficulty=int(difficulty), seed=42)
-    agent = ImmunoDefenderAgent(seed=42)
+    # Load the trained RL model from HF Hub
+    agent = ImmunoDefenderAgent(
+        seed=42, 
+        llm_provider="openai", 
+        model_path="your-username/immunoorg-patronus-rl" # REPLACE WITH YOUR HF PATH
+    )
     obs = env.reset()
     episode_log = []
     belief_accuracy_history = []
+
 
 
     status = f"✅ Episode started | Difficulty: {difficulty} | Phase: {obs.current_phase.value}"

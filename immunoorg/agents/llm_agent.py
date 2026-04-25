@@ -22,11 +22,12 @@ class ImmunoDefenderAgent:
     It prioritizes RAG alerts and Board Directives in its decision-making.
     """
 
-    def __init__(self, agent_id: str = "patronus-v1", seed: int | None = None, llm_provider: str = "openai"):
+    def __init__(self, agent_id: str = "patronus-v1", seed: int | None = None, llm_provider: str = "openai", model_path: str | None = None):
         self.agent_id = agent_id
         self.rng = random.Random(seed)
         self.action_history: list[ImmunoAction] = []
-        self.llm = LLMClient(provider=llm_provider, fallback_to_mock=True)
+        self.llm = LLMClient(provider=llm_provider, model_path=model_path, fallback_to_mock=True)
+
 
 
     def act(self, obs: ImmunoObservation) -> ImmunoAction:
