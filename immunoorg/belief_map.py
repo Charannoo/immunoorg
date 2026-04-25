@@ -3,6 +3,9 @@ Belief Map — World Model
 =========================
 Correlates technical failures to organizational flaws.
 Tracks the agent's internal model accuracy against ground truth.
+
+ImmunoOrg 2.0 - Phase 4: Integrated with MITRE ATT&CK TTP framework
+for improved root cause analysis.
 """
 
 from __future__ import annotations
@@ -10,6 +13,7 @@ from __future__ import annotations
 from immunoorg.models import (
     AttackVector, BeliefMapState, TechOrgCorrelation,
 )
+from immunoorg.mitre_ttp import MITRETTPEngine
 
 
 # Ground truth correlation library — what org flaws cause what tech failures
@@ -63,11 +67,15 @@ GROUND_TRUTH_LIBRARY: dict[str, list[dict[str, str]]] = {
 
 
 class BeliefMap:
-    """Manages the agent's world model — correlating technical failures to org flaws."""
+    """Manages the agent's world model — correlating technical failures to org flaws.
+    
+    Phase 4: Integrated with MITRE ATT&CK framework for improved TTP-based correlation.
+    """
 
     def __init__(self):
         self.state = BeliefMapState()
         self.ground_truth: list[TechOrgCorrelation] = []
+        self.ttp_engine = MITRETTPEngine()  # Phase 4 integration
 
     def set_ground_truth(self, attacks: list[dict]) -> None:
         """Set ground truth correlations based on active attacks."""
@@ -165,3 +173,45 @@ class BeliefMap:
             feedback_parts.append("World model needs significant improvement — investigate further")
 
         return " | ".join(feedback_parts)
+    
+    # Phase 4: MITRE TTP Integration
+    def correlate_attack_to_ttp(self, technical_indicators: list[str]) -> dict:
+        """
+        Correlate observed technical indicators to MITRE ATT&CK TTPs.
+        Returns likely techniques and tactics.
+        """
+        return self.ttp_engine.correlate_indicators_to_ttp(technical_indicators)
+    
+    def get_mitre_context(self) -> dict:
+        """Get overview of MITRE TTP framework."""
+        return self.ttp_engine.get_mitre_overview()
+    
+    def suggest_defensive_strategy_from_ttp(self, observed_techniques: list[str]) -> dict:
+        """
+        Suggest organizational changes and technical mitigations
+        based on observed MITRE techniques.
+        """
+        technique_to_mitigation = {
+            "T1566": "Implement email security gateway and user training",
+            "T1110": "Enable MFA, enforce strong password policies",
+            "T1021": "Implement network segmentation, disable unnecessary remote services",
+            "T1548": "Reduce privilege scope, implement privilege access management",
+            "T1027": "Deploy EDR (Endpoint Detection & Response)",
+            "T1486": "Implement automated backup with immutable snapshots",
+            "T1190": "Apply security patches, conduct code review, enable WAF",
+            "T1047": "Disable WMI, monitor WMI usage, implement application whitelisting",
+        }
+        
+        mitigations = []
+        for technique in observed_techniques:
+            if technique in technique_to_mitigation:
+                mitigations.append({
+                    "technique": technique,
+                    "mitigation": technique_to_mitigation[technique]
+                })
+        
+        return {
+            "observed_techniques": observed_techniques,
+            "recommended_mitigations": mitigations,
+            "confidence": min(1.0, len(observed_techniques) * 0.3),
+        }
