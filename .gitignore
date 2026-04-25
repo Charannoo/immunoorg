@@ -11,3 +11,7 @@ htmlcov/
 venv/
 env/
 *.log
+
+# Evidence charts (PNGs) — Hugging Face Hub git rejects binary pushes without Xet;
+# keep locally / regenerate with generate_evidence_2.py; README links to GitHub raw.
+evidence_*.png

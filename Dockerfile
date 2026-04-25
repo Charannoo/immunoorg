@@ -18,7 +18,6 @@ COPY server/ ./server/
 COPY visualization/ ./visualization/
 COPY openenv.yaml .
 COPY README.md .
-COPY evidence_*.png ./
 
 # Create a non-root user (HF Spaces requirement)
 RUN useradd -m -u 1000 user

@@ -56,7 +56,7 @@ ImmunoOrg 2.0 is a next-generation OpenEnv RL environment simulating an **entire
 
 ### Policy Comparison
 
-![Policy Comparison](./evidence_policy_comparison.png)
+![Policy Comparison](https://raw.githubusercontent.com/Charannoo/immunoorg/master/evidence_policy_comparison.png)
 
 | Agent | Level 1 | Level 2 | Level 3 |
 |:---:|:---:|:---:|:---:|
@@ -65,20 +65,20 @@ ImmunoOrg 2.0 is a next-generation OpenEnv RL environment simulating an **entire
 
 ### Self-Healing Loop (6 Generations)
 
-![Self Improvement](./evidence_self_improvement.png)
+![Self Improvement](https://raw.githubusercontent.com/Charannoo/immunoorg/master/evidence_self_improvement.png)
 
 - Org efficiency: 0.312 -> 0.469 (+50%)
 - Time-to-Containment: 48 -> 28 steps (-42%)
 
 ### 5-Track Reward & War Room Activity
 
-![5-Track Reward](./evidence_5track_reward.png)
+![5-Track Reward](https://raw.githubusercontent.com/Charannoo/immunoorg/master/evidence_5track_reward.png)
 
-![War Room Mesh](./evidence_war_room_mesh.png)
+![War Room Mesh](https://raw.githubusercontent.com/Charannoo/immunoorg/master/evidence_war_room_mesh.png)
 
 ### Org Before/After Self-Healing
 
-![Org Before After](./evidence_org_before_after.png)
+![Org Before After](https://raw.githubusercontent.com/Charannoo/immunoorg/master/evidence_org_before_after.png)
 
 ---
 
