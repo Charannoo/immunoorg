@@ -100,13 +100,14 @@ def _training_secret_ok(provided: str | None) -> bool:
 
 
 def _require_training_token(token: str | None) -> None:
-    if not (os.environ.get("TRAINING_SECRET") or "").strip():
+    expected = (os.environ.get("TRAINING_SECRET") or "").strip()
+    if not expected:
         raise HTTPException(
             status_code=503,
             detail="Training trigger is disabled. Set TRAINING_SECRET in Space secrets.",
         )
     if not _training_secret_ok(token):
-        raise HTTPException(status_code=404, detail="Not found")
+        raise HTTPException(status_code=401, detail="Invalid Training Token")
 
 
 def _get_env() -> ImmunoOrgEnvironment:
