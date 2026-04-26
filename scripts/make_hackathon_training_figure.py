@@ -80,7 +80,7 @@ def main() -> None:
     rewards_r: list[float] = []
     cum: list[float] = []
     total = 0.0
-    max_steps = 35
+    max_steps = 24  # shorter = faster figure gen; still shows cumulative reward curve
     for t in range(max_steps):
         action = _heuristic(obs, env)
         obs, r, done = env.step(action)

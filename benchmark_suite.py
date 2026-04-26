@@ -15,8 +15,9 @@ from immunoorg.agents.baseline_agents import RandomAgent, HeuristicAgent
 
 
 class BenchmarkSuite:
-    def __init__(self, num_episodes: int = 100):
+    def __init__(self, num_episodes: int = 100, max_episode_steps: int = 200):
         self.num_episodes = num_episodes
+        self.max_episode_steps = max_episode_steps
         self.results = defaultdict(list)
 
     
@@ -53,9 +54,8 @@ class BenchmarkSuite:
             obs = env.reset()
             terminated = False
             steps = 0
-            max_steps = 200
-            
-            while not terminated and steps < max_steps:
+
+            while not terminated and steps < self.max_episode_steps:
                 action = agent.act(obs)
                 obs, reward, terminated = env.step(action)
                 steps += 1
@@ -130,14 +130,36 @@ class BenchmarkSuite:
 
 
 if __name__ == "__main__":
+    import argparse
     import sys
-    
-    num_episodes = int(sys.argv[1]) if len(sys.argv) > 1 else 100
-    model_path = sys.argv[2] if len(sys.argv) > 2 else None
-    
-    suite = BenchmarkSuite(num_episodes=num_episodes)
+
+    argv = sys.argv[1:]
+    # Legacy: python benchmark_suite.py 12 [model_path]
+    if argv and argv[0].isdigit():
+        argv = ["-n", argv[0]] + argv[1:]
+
+    parser = argparse.ArgumentParser(description="Benchmark random / heuristic / LLM agents")
+    parser.add_argument("-n", "--episodes", type=int, default=100, help="Episodes per agent per difficulty")
+    parser.add_argument(
+        "--max-steps",
+        type=int,
+        default=200,
+        help="Max env steps per episode (lower = faster smoke)",
+    )
+    parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="Fast smoke: 5 episodes, 55-step cap (~15–25s on a laptop)",
+    )
+    parser.add_argument("model_path", nargs="?", default=None)
+    args = parser.parse_args(argv)
+    if args.quick:
+        args.episodes = 5
+        args.max_steps = 55
+
+    suite = BenchmarkSuite(num_episodes=args.episodes, max_episode_steps=args.max_steps)
     start = time.time()
-    suite.run_benchmark(model_path=model_path)
+    suite.run_benchmark(model_path=args.model_path)
     elapsed = time.time() - start
     
     suite.print_summary()

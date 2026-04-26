@@ -28,6 +28,7 @@ Run **`python scripts/make_hackathon_training_figure.py`** to create **`evidence
 | 👩‍⚖️ **Judges — 60 s** | [`JUDGES_60_SECONDS.md`](./JUDGES_60_SECONDS.md) |
 | 📋 **Problem statement (Round 2 formal)** | [`PROBLEM_STATEMENT.md`](./PROBLEM_STATEMENT.md) |
 | 📝 **Mini-blog (source — paste into HF)** | [`BLOG_POST.md`](./BLOG_POST.md) |
+| 📰 **Full project report (judges + SEO)** | [`blog.md`](./blog.md) |
 | ✍️ **Publish HF post + YouTube** | [`PUBLISH_HACKATHON.md`](./PUBLISH_HACKATHON.md) |
 | 🌐 **HF mini-blog (public URL)** | *Replace after publishing:* `HF_MINI_BLOG_URL` |
 | ▶️ **YouTube demo (&lt; 2 min)** | *Replace after upload:* `YOUTUBE_DEMO_URL` |
@@ -73,6 +74,7 @@ post-training).
 
 All charts are produced by `python generate_evidence.py` and
 `python scripts/generate_training_evidence.py` and committed to the repo.
+**Quick real numbers:** `python benchmark_suite.py 12` writes [`benchmark_results.json`](./benchmark_results.json); **`evidence_grpo_training.png`** can be refreshed in ~1 min via `python scripts/make_hackathon_training_figure.py` (see [`blog.md`](./blog.md)).
 
 ![Random vs Heuristic policies across difficulty levels 1-4](./evidence_policy_comparison.png)
 *Random vs Heuristic across all 4 difficulty levels — Heuristic policy
