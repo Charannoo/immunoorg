@@ -37,6 +37,7 @@ from immunoorg.models import (
     ActionType,
     DiagnosticAction,
     ImmunoAction,
+    PipelineGate,
     StrategicAction,
     TacticalAction,
 )
@@ -140,7 +141,70 @@ def _heuristic_action(env, obs):
 # ─── Episode runners ───────────────────────────────────────────────────────
 
 
-def _run_episode(scenario, policy_fn, max_steps=30):
+def _mesh_gate_label(env: ImmunoOrgEnvironment) -> str:
+    gate = getattr(env, "_last_pipeline_gate", None)
+    if gate is None:
+        return "—"
+    if isinstance(gate, PipelineGate):
+        return gate.value
+    return str(gate)
+
+
+def _telemetry_row(env: ImmunoOrgEnvironment, obs) -> dict[str, str | int | float]:
+    """Surface War Room, 4-gate mesh, migration/honeypots, MITRE-ish vector."""
+    mig = {}
+    try:
+        mig = env.migration_engine.get_progress() or {}
+    except Exception:
+        pass
+    honeys = mig.get("active_honeypots") or []
+    if not isinstance(honeys, list):
+        honeys = []
+    att = "—"
+    if obs.detected_attacks:
+        att = obs.detected_attacks[0].vector.value
+    d0 = obs.directives[0] if obs.directives else "—"
+    if isinstance(d0, str) and len(d0) > 36:
+        d0 = d0[:33] + "…"
+    return {
+        "mesh_ok": round(float(getattr(env, "_last_pipeline_integrity", 1.0) or 1.0), 2),
+        "gate": _mesh_gate_label(env)[:28],
+        "war_room": int(getattr(env, "_last_war_room_turns", 0) or 0),
+        "honeypots": len(honeys),
+        "migr": str(mig.get("current_phase", "—"))[:14] if mig.get("active") else "off",
+        "migr_pct": int(100 * float(mig.get("progress_pct", 0) or 0)) if mig.get("active") else 0,
+        "honeytokens": int(mig.get("honeytoken_activations", 0) or 0) if mig.get("active") else 0,
+        "attack_vec": str(att)[:22],
+        "directive": str(d0),
+    }
+
+
+def _pick_demo_action(env: ImmunoOrgEnvironment, obs, policy_fn, step_index: int, showcase_migration: bool):
+    """Optional injected steps so judges see migration + honeypots (not honeycomb UI — decoy nodes)."""
+    if not showcase_migration:
+        return policy_fn(env, obs)
+    phase = obs.current_phase.value
+    if env.migration_engine.state is None and step_index == 1 and phase in (
+        "detection", "containment", "rca", "refactor",
+    ):
+        return ImmunoAction(
+            action_type=ActionType.TACTICAL,
+            tactical_action=TacticalAction.START_MIGRATION,
+            target="core-backbone",
+            reasoning="[Demo] Start 50-step polymorphic migration (decoys, honeypots, honeytokens).",
+            parameters={"compliance": "SOC2"},
+        )
+    if env.migration_engine.state and step_index >= 3 and step_index % 4 == 0:
+        return ImmunoAction(
+            action_type=ActionType.TACTICAL,
+            tactical_action=TacticalAction.DEPLOY_HONEYPOT,
+            target="edge-pool",
+            reasoning="[Demo] Deploy honeypot node on the migration track.",
+        )
+    return policy_fn(env, obs)
+
+
+def _run_episode(scenario, policy_fn, max_steps=30, *, showcase_migration: bool = False):
     """Roll out a policy on a scenario, return (frames, total_reward).
 
     `policy_fn(env, obs)` -> ImmunoAction
@@ -157,10 +221,11 @@ def _run_episode(scenario, policy_fn, max_steps=30):
     frames = []
     total = 0.0
     for step in range(min(max_steps, env.state.max_steps)):
-        action = policy_fn(env, obs)
+        action = _pick_demo_action(env, obs, policy_fn, step, showcase_migration)
         obs, reward, done = env.step(action)
         shaped = float(reward) + float(training_step_penalty(env, action))
         total += shaped
+        tel = _telemetry_row(env, obs)
         frames.append({
             "step": step + 1,
             "phase": obs.current_phase.value,
@@ -175,6 +240,7 @@ def _run_episode(scenario, policy_fn, max_steps=30):
             "reasoning": action.reasoning,
             "reward": round(shaped, 3),
             "threats_left": len(env.attacks.get_active_attacks()),
+            **tel,
         })
         if done:
             break
@@ -224,9 +290,28 @@ def _trained_policy(env, obs):
 
 
 def _frames_to_table(frames):
-    return [[f["step"], f["phase"], f["action_type"], f["action"],
-             f["target"], f["reward"], f["threats_left"], f["reasoning"][:90]]
-            for f in frames]
+    out = []
+    for f in frames:
+        out.append([
+            f["step"],
+            f["phase"],
+            f["action_type"],
+            f["action"],
+            f["target"],
+            f["reward"],
+            f["threats_left"],
+            f["mesh_ok"],
+            f["gate"],
+            f["war_room"],
+            f["honeypots"],
+            f["migr"],
+            f["migr_pct"],
+            f["honeytokens"],
+            f["attack_vec"],
+            f["directive"],
+            f["reasoning"][:72],
+        ])
+    return out
 
 
 def _trained_status_text() -> str:
@@ -247,12 +332,17 @@ def _trained_status_text() -> str:
             f"until the LoRA is pushed.")
 
 
-def run_demo(scenario_label, max_steps):
+def run_demo(scenario_label, max_steps, showcase_migration):
     family = _LABEL_TO_FAMILY[scenario_label]
     scenario = _scenario_for(family)
+    show_mig = bool(showcase_migration)
 
-    heur_frames, heur_total = _run_episode(scenario, _heuristic_action, int(max_steps))
-    trained_frames, trained_total = _run_episode(scenario, _trained_policy, int(max_steps))
+    heur_frames, heur_total = _run_episode(
+        scenario, _heuristic_action, int(max_steps), showcase_migration=show_mig
+    )
+    trained_frames, trained_total = _run_episode(
+        scenario, _trained_policy, int(max_steps), showcase_migration=show_mig
+    )
 
     # Per-step reward chart
     import numpy as np
@@ -301,8 +391,11 @@ def run_demo(scenario_label, max_steps):
 
 
 def build_demo() -> gr.Blocks:
-    table_headers = ["step", "phase", "type", "action", "target",
-                     "reward", "threats", "reasoning (truncated)"]
+    table_headers = [
+        "step", "phase", "type", "action", "target", "reward", "threats",
+        "pipeline", "mesh gate", "WR turns", "honeypots", "migr phase",
+        "migr %", "honeytokens", "attack vec", "directive", "reasoning",
+    ]
 
     with gr.Blocks(title="ImmunoOrg 2.0 — Live Demo") as demo:
         gr.Markdown(
@@ -313,6 +406,16 @@ The agent has to defend an enterprise from a cyber-attack **and**
 restructure the organization that lets the attack succeed in the first
 place. Pick one of the 5 scenario families and watch the heuristic
 baseline play it head-to-head against the GRPO-trained LLM defender.
+
+**What the extra columns show (backend features, live from the sim):**
+
+| Column | Feature in codebase |
+| --- | --- |
+| **pipeline / mesh gate** | 4-gate **DevSecOps Mesh** (`devsecops_mesh.py`): AST → semantic → Terraform → sandbox; gate shows which layer flagged a payload. |
+| **WR turns** | **War Room** multi-agent debate rounds toward consensus (`war_room.py`). |
+| **honeypots / migr / honeytokens** | **50-step polymorphic migration** (`migration_engine.py`): decoy phase, honeypot nodes, honeytoken activations — *not* a separate “honeycomb” UI; honeypots are tactical decoys here. |
+| **attack vec** | Active attack vector (feeds **MITRE** / kill-chain context in the full env). |
+| **directive** | Board directive text when the scenario injects one. |
 
 > 📚 [Problem statement](https://github.com/Charannoo/immunoorg/blob/master/PROBLEM_STATEMENT.md)
 > · [Source](https://github.com/Charannoo/immunoorg)
@@ -330,6 +433,10 @@ baseline play it head-to-head against the GRPO-trained LLM defender.
                 label="Scenario family",
             )
             steps_sl = gr.Slider(5, 30, value=15, step=1, label="Max steps per episode")
+            mig_cb = gr.Checkbox(
+                value=True,
+                label="Demo: run START_MIGRATION + honeypot beats (shows decoys/honeytokens)",
+            )
             run_btn = gr.Button("Run episode", variant="primary")
 
         summary_md = gr.Markdown()
@@ -354,20 +461,22 @@ baseline play it head-to-head against the GRPO-trained LLM defender.
 
 ### What the agent is reasoning about
 
-- 28 actions across 3 categories: **tactical** (block_port, isolate_node, deploy_patch…),
+- 28 actions across 3 categories: **tactical** (block_port, isolate_node, deploy_patch, **deploy_honeypot**, start_migration…),
   **strategic** (merge_departments, reduce_bureaucracy, establish_devsecops…),
   **diagnostic** (correlate_failure, identify_silo, vulnerability_scan…).
 - 5-track composable reward:
   uptime (25%) · threat neutralization (25%) · bureaucracy efficiency (20%) ·
-  code-patch quality (20%) · pipeline integrity (10%).
+  code-patch quality (20%) · pipeline integrity (10%) — pipeline ties to **mesh** columns.
 - Trained on the elite 20/20/20/20/20 mix of scenario families
   (basic / RAG / executive / silo / stealth) with TRL GRPO + Unsloth.
+
+Uncheck **Demo: migration + honeypot** for a “pure” heuristic/LLM comparison without injected migration steps.
             """
         )
 
         run_btn.click(
             run_demo,
-            inputs=[scenario_dd, steps_sl],
+            inputs=[scenario_dd, steps_sl, mig_cb],
             outputs=[summary_md, heur_table, trained_table, chart, status_md],
         )
 
