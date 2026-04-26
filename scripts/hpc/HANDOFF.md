@@ -1,18 +1,24 @@
-# ImmunoOrg 2.0 — Supercomputer Run Handoff
+# ImmunoOrg 2.0 — Supercomputer Run Handoff (4-stage pipeline)
 
-Hi! Thanks for running this — it gets the hackathon's most-required artifact
-(GRPO loss + reward curves) into the submission. The whole thing is one
-command. **Total wall-clock: ~45 min on 1× A100 / H100.**
+Hi! Thanks for running this. The whole thing is **two commands** and the cluster
+does the rest unattended. Total wall-clock: **~3-4 hours** for the full 4-stage
+pipeline on a single A100/H100, or **~1-1.5 hours** if you skip SFT.
+
+What the pipeline produces:
+- A trained LoRA defender (Qwen2.5-7B by default, configurable up to 14B/32B)
+- 6+ evidence PNG charts (loss curves, baseline-vs-trained comparisons)
+- A reusable training dataset on the HF Hub
+- All artifacts auto-pushed to my HF account
 
 ---
 
 ## What you'll need
 
-- **An HF write token** (sender will give you one — call it `$HF_TOKEN`).
-- **One GPU**: A100 40GB / 80GB or H100 (V100 32GB also works).
-- **SLURM** (most US clusters). If your cluster uses PBS/Torque, see "Non-SLURM" at the bottom.
-- **Internet access on the GPU node** (most clusters have this; if yours does
-  not, see "Air-gapped node" below — there's a workaround).
+- **HF write token** (sender will give you one, will look like `hf_xxx...`).
+- **GPU**: A100 / H100 / V100 (32GB+). If you have multiple, even better.
+- **SLURM** (most US clusters). PBS/Torque also works — see "Non-SLURM" below.
+- **Internet on GPU node** for model download. Most clusters allow this. If not,
+  see "Air-gapped" below.
 
 ---
 
@@ -23,125 +29,153 @@ command. **Total wall-clock: ~45 min on 1× A100 / H100.**
 git clone https://github.com/Charannoo/immunoorg.git
 cd immunoorg
 
-# 2. One-time env setup (~5 min, downloads PyTorch + Unsloth + TRL)
+# 2. One-time env setup (~5-8 min, downloads PyTorch + Unsloth + TRL + flash-attn)
 bash scripts/hpc/setup_env.sh
 
-# 3. Export your HF token (so the trained adapter + PNG can be uploaded)
+# 3. Export the HF token
 export HF_TOKEN="hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-export HF_PUSH_REPO="hirann/immunoorg-grpo-defender"   # default; sender can override
 
-# 4. Submit the SLURM job (returns a job ID immediately)
-sbatch scripts/hpc/slurm_train.sbatch
-
-# 5. Watch progress
-squeue -u $USER                                  # job state
-tail -f logs/grpo-*.out                          # live training log
+# 4. Submit the entire 4-stage pipeline (returns immediately with 5 job IDs)
+bash scripts/hpc/run_all.sh
 ```
 
-When the job finishes, the script automatically:
-- Saves `evidence_grpo_training.png` (loss + reward curves) to the repo root.
-- Saves the LoRA adapter to `outputs/immunoorg-defender/`.
-- **Pushes both to `https://huggingface.co/$HF_PUSH_REPO`** so the sender can
-  pull them on their machine.
-
-You're done. Just message back the SLURM job ID and the HF model URL.
+That's it. SLURM will run all 4 stages in dependency order (each stage waits
+for the previous via `--dependency=afterok:`). When stage 4 finishes, every
+artifact is on the HF Hub and the sender can pull it from there.
 
 ---
 
-## Customising the SLURM job
+## What the pipeline actually does
 
-The defaults work for most clusters. If your partition / GPU is named differently,
-edit the top of `scripts/hpc/slurm_train.sbatch`:
+| Stage | Job | Resources | Time | What it produces |
+| ---: | --- | --- | ---: | --- |
+| 0 | datasets | CPU only, 32G RAM | ~25 min | 1700+ scenarios + 200 heuristic trajectories + SFT data + GRPO prompt set, pushed to `<user>/immunoorg-grpo-dataset` |
+| 1 | SFT warm-start | 1 GPU, 64G RAM | ~25 min | LoRA adapter trained on heuristic trajectories so the model already speaks the env's JSON format before GRPO starts |
+| 2 | GRPO training | 1+ GPU, 96G RAM | ~90-120 min | Final LoRA adapter, `evidence_grpo_training.png` (loss + per-reward curves) |
+| 3 | evaluation | 1 GPU, 64G RAM | ~30 min | 100 episodes per family × 3 policies (random/heuristic/trained), produces `evidence_eval_per_family.png` and `evidence_eval_summary.png` |
+| 4 | push artifacts | CPU only | ~10 min | Pushes adapter + 6+ PNGs + raw logs to `<user>/immunoorg-grpo-defender` model repo |
+
+You can watch live with:
 
 ```bash
-#SBATCH --partition=gpu           # change to your partition (e.g. a100, h100, gpu-a100)
-#SBATCH --gres=gpu:1              # 1 GPU
-#SBATCH --time=01:00:00           # 1 hour walltime
-#SBATCH --mem=64G                 # 64 GB RAM
-#SBATCH --cpus-per-task=8
+squeue -u $USER                       # job states
+tail -f logs/stage*-*.out             # live training log
 ```
 
-Common partition names by cluster:
-- TACC (Frontera/Lonestar): `rtx`, `v100`
-- NCSA (Delta): `gpuA100x4`
-- NERSC (Perlmutter): `gpu`, `gpu_a100`
-- Most universities: `gpu`, `a100`, `h100`
+---
+
+## Customising
+
+### Want to use multiple GPUs (recommended if you have them)?
+
+```bash
+bash scripts/hpc/run_all.sh --multigpu 4
+```
+
+Stage 2 (GRPO) will be data-parallel across 4 GPUs via `accelerate launch`.
+Roughly cuts stage 2 time from 90 min to 25 min.
+
+### Want a bigger model (14B / 32B)?
+
+Override before submitting:
+
+```bash
+export IMMUNOORG_MODEL="Qwen/Qwen2.5-14B-Instruct"      # needs A100 80GB or 2x A100 40GB
+# or
+export IMMUNOORG_MODEL="Qwen/Qwen2.5-32B-Instruct"      # needs 2x A100 80GB or 4x A100 40GB
+
+bash scripts/hpc/run_all.sh --multigpu 2
+```
+
+### Skip SFT (saves ~30 min, slightly weaker results)
+
+```bash
+bash scripts/hpc/run_all.sh --skip-sft
+```
+
+### Custom partition / queue names
+
+If your partition isn't called `gpu` and `cpu`:
+
+```bash
+bash scripts/hpc/run_all.sh --partition gpu-a100 --partition-cpu compute
+```
+
+Or set env vars: `IMMUNOORG_PARTITION=gpu-a100 IMMUNOORG_PARTITION_CPU=compute`.
+
+### Push to a different HF account
+
+```bash
+export HF_PUSH_REPO="your-username/immunoorg-defender"
+export HF_DATASET_REPO="your-username/immunoorg-dataset"
+bash scripts/hpc/run_all.sh
+```
+
+### Common partition names by cluster
+
+| Cluster | GPU partition | CPU partition |
+| --- | --- | --- |
+| TACC (Frontera/Lonestar) | `rtx`, `v100` | `normal`, `development` |
+| NCSA Delta | `gpuA100x4`, `gpuA40x4` | `cpu` |
+| NERSC Perlmutter | `gpu`, `gpu_a100` | `regular_milan_ss11` |
+| Most universities | `gpu`, `a100`, `h100` | `cpu`, `compute`, `general` |
 
 Run `sinfo -o '%P %G %D'` if you're not sure.
-
----
-
-## What it actually trains
-
-- **Base model**: `Qwen/Qwen2.5-7B-Instruct` (4-bit LoRA via Unsloth)
-- **Algorithm**: GRPO (TRL)
-- **Reward functions** (3 independent, judge anti-hacking compliant):
-  1. `format_reward` — valid JSON action schema
-  2. `reasoning_quality_reward` — causal language + entity grounding
-  3. `phase_appropriate_reward` — action belongs to current incident phase
-- **Dataset**: 500 prompts from the **elite scenario mix** (20% each of 5 conflict
-  scenarios: basic containment, RAG-grounding, executive alignment, silo-breaker,
-  stealth-adaptive).
-- **Training time**: ~30-40 min on A100 80GB with Unsloth (1 epoch, 200 GRPO
-  steps, num_generations=4).
-
-Override via env vars before `sbatch`:
-
-```bash
-export IMMUNOORG_MODEL="Qwen/Qwen2.5-3B-Instruct"   # smaller for V100 32GB
-export IMMUNOORG_EPOCHS=2
-export IMMUNOORG_NUM_PROMPTS=200                    # smaller dataset for faster runs
-```
-
----
-
-## What gets pushed to the HF model repo
-
-```
-https://huggingface.co/<HF_PUSH_REPO>/
-├── adapter_config.json
-├── adapter_model.safetensors          ← LoRA weights (~30 MB for 7B)
-├── tokenizer.json + tokenizer_config.json
-├── evidence_grpo_training.png         ← THE money chart
-├── grpo_log.json                       ← raw trainer.state.log_history
-└── README.md                           ← auto-generated model card
-```
 
 ---
 
 ## Troubleshooting
 
 ### `sbatch: error: Invalid partition specified`
-→ Run `sinfo -o '%P %G'` to see your real partition names; edit the
-`#SBATCH --partition=` line in `scripts/hpc/slurm_train.sbatch`.
+→ `sinfo -o '%P %G'` shows real partition names. Pass `--partition <name>`.
 
-### Out-of-memory during training
-→ Edit `IMMUNOORG_MODEL` to a smaller model (`Qwen/Qwen2.5-3B-Instruct` or
-`Qwen/Qwen2.5-1.5B-Instruct`).
+### Out of memory on GPU
+→ Smaller model: `export IMMUNOORG_MODEL="Qwen/Qwen2.5-3B-Instruct"`.
+→ Smaller batch: `export IMMUNOORG_GRPO_BATCH_SIZE=2 IMMUNOORG_SFT_BATCH_SIZE=2`.
 
 ### "RuntimeError: bf16 requires Ampere or newer"
-→ You're on V100 (Volta). Edit `scripts/hpc/train_full.py` and change
-`bf16=True` to `fp16=True` (one line, see comment).
+→ V100 (Volta) detected. The pipeline auto-falls back to fp16 — should just work.
+   If it doesn't, edit `scripts/hpc/pipeline/02_grpo_train.py` and force `bf16=False, fp16=True`.
+
+### Stage 0 / 4 want a CPU partition but cluster only has GPU
+→ Submit them to GPU too: `bash scripts/hpc/run_all.sh --partition-cpu gpu`.
 
 ### Air-gapped GPU node (no internet)
-1. From the login node: `bash scripts/hpc/setup_env.sh && python -c "from transformers import AutoModelForCausalLM, AutoTokenizer; AutoModelForCausalLM.from_pretrained('Qwen/Qwen2.5-7B-Instruct'); AutoTokenizer.from_pretrained('Qwen/Qwen2.5-7B-Instruct')"`
-2. This downloads the model into `~/.cache/huggingface/`.
-3. `sbatch scripts/hpc/slurm_train.sbatch` will use the cache instead of downloading.
+1. On the login node:
+   ```bash
+   bash scripts/hpc/setup_env.sh
+   source .venv-hpc/bin/activate
+   python -c "from transformers import AutoModelForCausalLM, AutoTokenizer; \
+              AutoModelForCausalLM.from_pretrained('Qwen/Qwen2.5-7B-Instruct'); \
+              AutoTokenizer.from_pretrained('Qwen/Qwen2.5-7B-Instruct')"
+   ```
+2. The model is now in `~/.cache/huggingface/`. SLURM jobs reuse the cache.
 
-### Non-SLURM cluster (PBS/Torque, LSF, etc.)
-You can run interactively on a GPU node:
+### Non-SLURM cluster (PBS/Torque, LSF, single-node interactive)
+You can still run each stage manually inside an interactive GPU shell:
 
 ```bash
-# Get an interactive GPU shell first (cluster-specific):
-#   PBS:  qsub -I -l select=1:ngpus=1:walltime=01:00:00
-#   LSF:  bsub -Is -gpu "num=1" -W 60 bash
-# then:
-bash scripts/hpc/setup_env.sh
+# Get an interactive GPU shell first (cluster-specific, e.g. PBS):
+qsub -I -l select=1:ngpus=1:walltime=04:00:00
+
+# Then:
+source .venv-hpc/bin/activate
 export HF_TOKEN="..."
-bash scripts/hpc/run_interactive.sh
+python scripts/hpc/pipeline/00_generate_datasets.py
+python scripts/hpc/pipeline/01_sft_warmstart.py
+python scripts/hpc/pipeline/02_grpo_train.py
+python scripts/hpc/pipeline/03_evaluate.py
+python scripts/hpc/pipeline/04_push_artifacts.py
 ```
 
 ---
 
-That's the whole thing. Thanks again — this single run is worth ~15 percentage
-points on the final hackathon score. 🙏
+## When it's done
+
+Just message back:
+- The five SLURM job IDs (`run_all.sh` prints them)
+- Confirmation that the model + dataset URLs above contain the artifacts
+
+Sender pulls everything from those URLs and re-deploys the HF Space.
+
+Thanks again — this run is the missing piece for the hackathon submission. 🙏

@@ -257,7 +257,7 @@ python generate_evidence.py              # 4 publication-quality PNGs
 
 | Where | When to use | Time | See |
 | --- | --- | --- | --- |
-| **HPC supercomputer** | Best for the *real* training evidence; produces `evidence_grpo_training.png` on Qwen2.5-7B in ~45 min on a single A100. Auto-uploads adapter + PNG to a HF model repo. | ~45 min | [`scripts/hpc/HANDOFF.md`](./scripts/hpc/HANDOFF.md) |
+| **HPC supercomputer (4-stage pipeline)** | Best for full evidence: dataset generation + SFT warm-start + GRPO + 100-episode baseline-vs-trained eval, all chained via SLURM dependencies. Auto-uploads adapter + 6+ PNGs + dataset to HF Hub. One command. | ~3-4 hr (1 GPU) / ~1-1.5 hr (4 GPUs) | [`scripts/hpc/HANDOFF.md`](./scripts/hpc/HANDOFF.md) |
 | **Colab T4** | Free, browser-only, no IT involvement. Trains Qwen2.5-3B. | ~30-45 min | [`ImmunoOrg_Training_Colab.ipynb`](./ImmunoOrg_Training_Colab.ipynb) |
 | **Local CPU smoke** | Quick sanity check that the pipeline runs. Won't produce meaningful curves. | ~10 min/step | `python -m training.train_grpo --smoke-test --batch-size 2 --num-generations 2` |
 

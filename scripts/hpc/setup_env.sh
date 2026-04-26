@@ -1,51 +1,72 @@
 #!/usr/bin/env bash
-# ImmunoOrg HPC env setup
-# =======================
-# Installs Python deps for GRPO training on a SLURM-allocated GPU node.
-# Uses `uv` (10x faster than pip, single-file install, no conda needed).
+# ImmunoOrg HPC env setup (4-stage pipeline edition)
+# ===================================================
 #
-# Run once on the *login node* (not inside the SLURM job).
-# Idempotent: re-running just verifies the env.
+# Run ONCE on the *login node* (not inside a SLURM job).
+# Idempotent: re-running just verifies the env exists.
+#
+# Installs:
+#   - uv (single-binary Python package manager, no conda needed)
+#   - Python 3.11 venv at .venv-hpc/
+#   - PyTorch 2.4 + CUDA 12 wheels (broad cluster compat)
+#   - TRL >= 0.15, transformers >= 4.45, peft, accelerate, datasets
+#   - Unsloth (single-GPU 2-3x speedup for <13B)
+#   - bitsandbytes (4-bit quantisation), safetensors, sentencepiece
+#   - matplotlib, pyyaml, networkx, pydantic, fastapi (for env package)
+#
+# Optional flags:
+#   --no-flash-attn   skip flash-attention install (some clusters lack the headers)
+#   --no-deepspeed    skip deepspeed install (only matters for >2x GPU runs)
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
+INSTALL_FLASH_ATTN=1
+INSTALL_DEEPSPEED=1
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --no-flash-attn) INSTALL_FLASH_ATTN=0; shift ;;
+        --no-deepspeed)  INSTALL_DEEPSPEED=0; shift ;;
+        -h|--help)       grep '^# ' "$0" | sed 's/^# //'; exit 0 ;;
+        *) echo "unknown flag: $1"; exit 1 ;;
+    esac
+done
+
 echo "===================================================================="
-echo "  ImmunoOrg 2.0 HPC env setup"
+echo "  ImmunoOrg 2.0 HPC env setup (4-stage pipeline edition)"
 echo "  Repo: $REPO_ROOT"
 echo "===================================================================="
 
-# ── 1. Install `uv` if missing (no sudo, drops binary into ~/.local/bin) ──
+# ── 1. Install uv if missing (no sudo, single binary) ────────────────────
 if ! command -v uv >/dev/null 2>&1; then
     echo
-    echo "[1/4] installing uv (single static binary, ~10s)..."
+    echo "[1/5] installing uv..."
     curl -LsSf https://astral.sh/uv/install.sh | sh
     export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 fi
-echo "[1/4] uv: $(uv --version)"
+echo "[1/5] uv: $(uv --version)"
 
-# ── 2. Try to load a recent CUDA module if the cluster uses Lmod ──
+# ── 2. Try to load CUDA + GCC modules if Lmod is present ────────────────
 echo
-echo "[2/4] looking for CUDA module..."
+echo "[2/5] looking for CUDA / GCC modules..."
 if command -v module >/dev/null 2>&1; then
     module purge 2>/dev/null || true
-    # Try common CUDA modules in priority order
-    for mod in "cuda/12.4" "cuda/12.1" "cuda/12.0" "cuda/11.8" "cuda" "CUDA"; do
-        if module load "$mod" 2>/dev/null; then
-            echo "    loaded: $mod"
-            break
-        fi
+    for mod in cuda/12.4 cuda/12.1 cuda/12.0 cuda/11.8 cuda CUDA; do
+        if module load "$mod" 2>/dev/null; then echo "    loaded: $mod"; break; fi
     done
-    nvcc --version 2>/dev/null || echo "    (no nvcc on login node — that's fine, GPU node will have it)"
+    for mod in gcc/11 gcc/10 gcc; do
+        if module load "$mod" 2>/dev/null; then echo "    loaded: $mod"; break; fi
+    done
+    nvcc --version 2>/dev/null || echo "    (no nvcc on login node - GPU node will have it)"
 else
-    echo "    (no Lmod / module command — assuming system CUDA)"
+    echo "    (no Lmod - assuming system CUDA / GCC)"
 fi
 
-# ── 3. Create a venv pinned to Python 3.11 (needed for PEP 604 unions) ──
+# ── 3. Create venv ───────────────────────────────────────────────────────
 echo
-echo "[3/4] creating venv at .venv-hpc with Python 3.11..."
+echo "[3/5] creating venv at .venv-hpc with Python 3.11..."
 if [ ! -d ".venv-hpc" ]; then
     uv venv --python 3.11 .venv-hpc
 fi
@@ -53,16 +74,12 @@ fi
 source .venv-hpc/bin/activate
 python -V
 
-# ── 4. Install training stack ──
+# ── 4. Install training stack ────────────────────────────────────────────
 echo
-echo "[4/4] installing GRPO training stack (~3-5 min)..."
-# Use uv pip for the install — much faster than plain pip and resolves cleanly.
+echo "[4/5] installing GRPO / SFT training stack (~5 min)..."
 uv pip install --upgrade pip wheel setuptools
 
-# Pinned versions known to work together as of April 2026:
-#  - torch 2.4 / cu121 (broadest cluster compat — A100/H100/V100 all OK)
-#  - trl 0.15.x (the version the repo was developed against)
-#  - unsloth latest (single-GPU 2-3x speedup for <13B models)
+# Pinned baseline
 uv pip install --no-cache \
     "torch==2.4.*" \
     "transformers>=4.45,<5.0" \
@@ -84,13 +101,51 @@ uv pip install --no-cache \
     "pyyaml" \
     "rich"
 
-# Unsloth pulls in xformers / triton; install last so it picks the matching torch.
+# Unsloth (single-GPU speedup; pulls in xformers / triton matching torch)
 uv pip install --no-cache "unsloth"
+
+# Flash-attention 2 (optional; fails on some older clusters / non-Ampere GPUs)
+if [ "$INSTALL_FLASH_ATTN" -eq 1 ]; then
+    echo
+    echo "    installing flash-attn (skip with --no-flash-attn if it fails)..."
+    uv pip install --no-cache "flash-attn>=2.5" --no-build-isolation || \
+        echo "    flash-attn install failed (not fatal — Unsloth has its own kernels)"
+fi
+
+# DeepSpeed for multi-GPU GRPO (optional; only used when --multigpu N > 1)
+if [ "$INSTALL_DEEPSPEED" -eq 1 ]; then
+    echo
+    echo "    installing deepspeed (only used for multi-GPU runs)..."
+    uv pip install --no-cache "deepspeed>=0.14" || \
+        echo "    deepspeed install failed (not fatal — single-GPU still works)"
+fi
+
+# ── 5. Sanity check ──────────────────────────────────────────────────────
+echo
+echo "[5/5] sanity check..."
+python - <<'PY'
+import importlib
+mods = ["torch", "transformers", "trl", "peft", "datasets", "accelerate", "bitsandbytes", "huggingface_hub"]
+for m in mods:
+    try:
+        v = getattr(importlib.import_module(m), "__version__", "?")
+        print(f"  {m:18s} {v}")
+    except Exception as e:
+        print(f"  {m:18s} FAILED ({e})")
+try:
+    import unsloth
+    print(f"  unsloth            {unsloth.__version__}")
+except Exception:
+    print("  unsloth            (not installed - single-GPU will fall back to plain HF)")
+PY
+
+mkdir -p logs outputs
 
 echo
 echo "===================================================================="
 echo "  ENV READY"
 echo "===================================================================="
-echo "  activate with:  source $REPO_ROOT/.venv-hpc/bin/activate"
-echo "  next step    :  sbatch scripts/hpc/slurm_train.sbatch"
+echo "  next:"
+echo "    export HF_TOKEN=hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+echo "    bash scripts/hpc/run_all.sh"
 echo "===================================================================="
