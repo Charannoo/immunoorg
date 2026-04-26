@@ -1,7 +1,7 @@
 
 import requests
 
-BASE_URL = "https://hirann-immunoorg-2.hf.space"
+BASE_URL = "https://hirann-immunoorg-v3.hf.space"
 
 def test_endpoint(name, method, path, payload=None):
     print(f"Testing {name} ({method} {path})...")

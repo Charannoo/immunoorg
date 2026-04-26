@@ -15,8 +15,8 @@ pinned: false
 
 | Resource | Link |
 | --- | --- |
-| **Hugging Face Space (live env)** | https://huggingface.co/spaces/hirann/immunoorg-2 |
-| **OpenEnv environment endpoint** | `https://hirann-immunoorg-2.hf.space` |
+| **Hugging Face Space (live env)** | https://huggingface.co/spaces/hirann/immunoorg-v3 |
+| **OpenEnv environment endpoint** | `https://hirann-immunoorg-v3.hf.space` |
 | **GitHub source** | https://github.com/Charannoo/immunoorg |
 | **Training notebook (Colab)** | [`ImmunoOrg_Training_Colab.ipynb`](./ImmunoOrg_Training_Colab.ipynb) |
 | **Mini blog post** | [`BLOG_POST.md`](./BLOG_POST.md) |
@@ -276,9 +276,9 @@ You can also kick off training from the deployed Space:
 ```bash
 # From any machine
 TOKEN=...        # value of the TRAINING_SECRET secret on the Space
-curl "https://hirann-immunoorg-2.hf.space/admin/training/start?token=$TOKEN&smoke_test=true"
-curl "https://hirann-immunoorg-2.hf.space/admin/training/status?token=$TOKEN"
-curl "https://hirann-immunoorg-2.hf.space/admin/training/log?token=$TOKEN&lines=200"
+curl "https://hirann-immunoorg-v3.hf.space/admin/training/start?token=$TOKEN&smoke_test=true"
+curl "https://hirann-immunoorg-v3.hf.space/admin/training/status?token=$TOKEN"
+curl "https://hirann-immunoorg-v3.hf.space/admin/training/log?token=$TOKEN&lines=200"
 ```
 
 ### Run the test suite
@@ -347,7 +347,7 @@ Following the hackathon guide (sections #7, #8, #21):
 ## 10. Status
 
 - ✅ OpenEnv (latest) compliant — manifest at `openenv.yaml`, server at `server/main.py`.
-- ✅ Hugging Face Space deployed: https://huggingface.co/spaces/hirann/immunoorg-2
+- ✅ Hugging Face Space deployed: https://huggingface.co/spaces/hirann/immunoorg-v3
 - ✅ Training script (TRL + Unsloth) in `training/train_grpo.py` and
   `ImmunoOrg_Training_Colab.ipynb`.
 - ✅ Mini blog post at [`BLOG_POST.md`](./BLOG_POST.md).
