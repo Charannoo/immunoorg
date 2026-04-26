@@ -1,6 +1,11 @@
 # Runtime deps for the HF Space (Docker) — kept slim because the Space
 # only serves the OpenEnv API + the /demo Gradio UI. Heavy training deps
 # are in requirements-training.txt and only installed for HPC / Colab.
+#
+# openenv-core — official OpenEnv hackathon package (imports as openenv.core).
+# Do NOT install the unrelated PyPI package named "openenv" alone; it conflicts.
+# PyPI latest: 0.2.3
+openenv-core>=0.2.3
 fastapi>=0.110
 uvicorn[standard]>=0.27
 pydantic>=2.6

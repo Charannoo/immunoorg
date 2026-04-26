@@ -8,7 +8,7 @@ version = "2.0.0"
 description = "ImmunoOrg 2.0: The Autonomous, Self-Healing Enterprise — OpenEnv RL environment for cybersecurity + organizational dynamics"
 requires-python = ">=3.11"
 dependencies = [
-    "openenv-core>=0.3.0",
+    "openenv-core>=0.2.3",
     "fastapi>=0.110.0",
     "uvicorn[standard]>=0.27.0",
     "pydantic>=2.6.0",

@@ -10,13 +10,13 @@ import logging
 import json
 from typing import Any
 
+# Hackathon / training stacks should install ``openenv-core`` (provides ``openenv.core``).
+# We keep ImmunoOrg's Gym-style ``step() -> (obs, reward, done)`` for the whole codebase
+# and expose OpenEnv-compatible HTTP ``reset`` / ``step`` / ``state`` from ``server/main.py``.
 try:
-    from openenv import OpenEnvEnvironment
+    import openenv.core  # noqa: F401 — OpenEnv framework present (EnvClient, rubrics, …)
 except ImportError:
-    # openenv package not installed — define minimal stub for HF Spaces / standalone use
-    class OpenEnvEnvironment:
-        """Minimal stub when openenv package is unavailable."""
-        pass
+    pass
 
 from immunoorg.models import (
     ActionType, ApprovalStatus, Attack, AttackVector,
@@ -41,8 +41,14 @@ from immunoorg.migration_engine import MigrationEngine
 from immunoorg.executive_context import ExecutiveContextEngine
 
 
-class ImmunoOrgEnvironment(OpenEnvEnvironment):
-    """The Self-Healing Autonomous Enterprise environment."""
+class ImmunoOrgEnvironment:
+    """The Self-Healing Autonomous Enterprise environment.
+
+    Implements the simulation API used across ImmunoOrg (tuple ``step``). The hosted
+    Space maps this to OpenEnv's HTTP contract and ``openenv.yaml`` manifest.
+    """
+
+    __module__ = "immunoorg.environment"
 
     def __init__(self, difficulty: int = 1, seed: int | None = None):
         self.seed = seed

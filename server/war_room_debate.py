@@ -1,5 +1,12 @@
 """
-ImmunoOrg 2.0 — Standalone War Room debate runner (Claude API).
+ImmunoOrg 2.0 — Standalone War Room debate runner (LLM API).
+
+Supports multiple backends (no paid Anthropic required):
+
+- **Groq** (free tier): set ``GROQ_API_KEY`` — used automatically in ``auto`` mode.
+- **OpenAI-compatible** (OpenRouter, Together, local Ollama, etc.):
+  ``OPENAI_API_KEY`` + optional ``OPENAI_API_BASE`` + ``WAR_ROOM_MODEL``.
+- **Anthropic**: ``ANTHROPIC_API_KEY`` + optional ``WAR_ROOM_MODEL`` for Claude.
 
 Orchestrates 3 parallel initial-position calls, then 3 parallel cross-examination
 calls, vote tally, and lightweight hallucination checks. Used by POST /api/war-room.
@@ -18,7 +25,11 @@ import requests
 
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_VERSION = "2023-06-01"
-MODEL = "claude-sonnet-4-20250514"
+DEFAULT_CLAUDE_MODEL = "claude-sonnet-4-20250514"
+DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
+DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+OPENAI_CHAT_PATH = "/chat/completions"
 
 HIPAA_RESIDENCY = "us-east-1"
 PROTECTED_IPS = ("10.0.0.1", "10.0.0.2")
@@ -106,14 +117,112 @@ def _strip_proposed_line(text: str) -> str:
     ).strip()
 
 
-def _call_anthropic_sync(system: str, user: str, max_tokens: int = 1200) -> str:
-    api_key = (os.environ.get("ANTHROPIC_API_KEY") or "").strip()
-    if not api_key:
-        raise RuntimeError(
-            "ANTHROPIC_API_KEY is not set. Configure it to run the War Room debate."
+@dataclass(frozen=True)
+class _WarRoomLLM:
+    """Resolved backend for one debate run."""
+
+    label: str
+    anthropic: bool
+    model: str
+    api_key: str
+    openai_base: str | None = None
+
+
+def _resolve_war_room_llm() -> _WarRoomLLM:
+    """
+    Pick provider from ``WAR_ROOM_PROVIDER`` (``auto`` | ``groq`` | ``openai`` | ``anthropic``)
+    and env keys. Default ``auto`` prefers Groq, then OpenAI-compatible, then Anthropic.
+    """
+    prov = (os.environ.get("WAR_ROOM_PROVIDER") or "auto").strip().lower()
+    groq_key = (os.environ.get("GROQ_API_KEY") or "").strip()
+    oa_key = (os.environ.get("OPENAI_API_KEY") or "").strip()
+    ant_key = (os.environ.get("ANTHROPIC_API_KEY") or "").strip()
+
+    if prov == "groq":
+        if not groq_key:
+            raise RuntimeError(
+                "WAR_ROOM_PROVIDER=groq but GROQ_API_KEY is not set. "
+                "Get a free key at https://console.groq.com/"
+            )
+        model = (os.environ.get("WAR_ROOM_MODEL") or DEFAULT_GROQ_MODEL).strip()
+        return _WarRoomLLM(
+            label="groq",
+            anthropic=False,
+            model=model,
+            api_key=groq_key,
+            openai_base=GROQ_BASE_URL,
         )
+    if prov in ("openai", "openai_compatible", "openrouter"):
+        if not oa_key:
+            raise RuntimeError(
+                "WAR_ROOM_PROVIDER=openai but OPENAI_API_KEY is not set."
+            )
+        base = (os.environ.get("OPENAI_API_BASE") or "https://api.openai.com/v1").strip().rstrip("/")
+        model = (os.environ.get("WAR_ROOM_MODEL") or DEFAULT_OPENAI_MODEL).strip()
+        return _WarRoomLLM(
+            label="openai_compatible",
+            anthropic=False,
+            model=model,
+            api_key=oa_key,
+            openai_base=base,
+        )
+    if prov == "anthropic":
+        if not ant_key:
+            raise RuntimeError(
+                "WAR_ROOM_PROVIDER=anthropic but ANTHROPIC_API_KEY is not set."
+            )
+        model = (os.environ.get("WAR_ROOM_MODEL") or DEFAULT_CLAUDE_MODEL).strip()
+        return _WarRoomLLM(
+            label="anthropic",
+            anthropic=True,
+            model=model,
+            api_key=ant_key,
+            openai_base=None,
+        )
+
+    # auto
+    if groq_key:
+        model = (os.environ.get("WAR_ROOM_MODEL") or DEFAULT_GROQ_MODEL).strip()
+        return _WarRoomLLM(
+            label="groq",
+            anthropic=False,
+            model=model,
+            api_key=groq_key,
+            openai_base=GROQ_BASE_URL,
+        )
+    if oa_key:
+        base = (os.environ.get("OPENAI_API_BASE") or "https://api.openai.com/v1").strip().rstrip("/")
+        model = (os.environ.get("WAR_ROOM_MODEL") or DEFAULT_OPENAI_MODEL).strip()
+        return _WarRoomLLM(
+            label="openai_compatible",
+            anthropic=False,
+            model=model,
+            api_key=oa_key,
+            openai_base=base,
+        )
+    if ant_key:
+        model = (os.environ.get("WAR_ROOM_MODEL") or DEFAULT_CLAUDE_MODEL).strip()
+        return _WarRoomLLM(
+            label="anthropic",
+            anthropic=True,
+            model=model,
+            api_key=ant_key,
+            openai_base=None,
+        )
+    raise RuntimeError(
+        "No LLM API key configured for the War Room. Use one of:\n"
+        "  • GROQ_API_KEY — free tier at https://console.groq.com/ (recommended)\n"
+        "  • OPENAI_API_KEY — optional OPENAI_API_BASE for OpenRouter / local OpenAI-compatible APIs\n"
+        "  • ANTHROPIC_API_KEY — Claude (paid)\n"
+        "Optional: WAR_ROOM_PROVIDER=auto|groq|openai|anthropic and WAR_ROOM_MODEL=…"
+    )
+
+
+def _call_anthropic_sync(
+    api_key: str, model: str, system: str, user: str, max_tokens: int
+) -> str:
     payload = {
-        "model": MODEL,
+        "model": model,
         "max_tokens": max_tokens,
         "system": system,
         "messages": [{"role": "user", "content": user}],
@@ -141,9 +250,76 @@ def _call_anthropic_sync(system: str, user: str, max_tokens: int = 1200) -> str:
     return "".join(parts).strip()
 
 
-async def _call_anthropic(system: str, user: str, max_tokens: int = 1200) -> str:
+def _call_openai_compatible_sync(
+    base_url: str,
+    api_key: str,
+    model: str,
+    system: str,
+    user: str,
+    max_tokens: int,
+) -> str:
+    url = base_url.rstrip("/") + OPENAI_CHAT_PATH
+    payload = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+    }
+    r = requests.post(
+        url,
+        headers={
+            "authorization": f"Bearer {api_key}",
+            "content-type": "application/json",
+        },
+        data=json.dumps(payload),
+        timeout=120,
+    )
+    if r.status_code >= 400:
+        raise RuntimeError(
+            f"Chat API error ({base_url}) {r.status_code}: {r.text[:800]}"
+        )
+    data = r.json()
+    choices = data.get("choices") or []
+    if not choices:
+        return ""
+    msg = choices[0].get("message") or {}
+    content = msg.get("content")
+    if isinstance(content, str):
+        return content.strip()
+    if isinstance(content, list):
+        parts = []
+        for part in content:
+            if isinstance(part, dict) and part.get("type") == "text":
+                parts.append(part.get("text") or "")
+        return "".join(parts).strip()
+    return ""
+
+
+def _call_llm_sync(
+    backend: _WarRoomLLM, system: str, user: str, max_tokens: int = 1200
+) -> str:
+    if backend.anthropic:
+        return _call_anthropic_sync(
+            backend.api_key, backend.model, system, user, max_tokens
+        )
+    assert backend.openai_base
+    return _call_openai_compatible_sync(
+        backend.openai_base,
+        backend.api_key,
+        backend.model,
+        system,
+        user,
+        max_tokens,
+    )
+
+
+async def _call_llm(
+    backend: _WarRoomLLM, system: str, user: str, max_tokens: int = 1200
+) -> str:
     return await asyncio.to_thread(
-        _call_anthropic_sync, system, user, max_tokens
+        _call_llm_sync, backend, system, user, max_tokens
     )
 
 
@@ -261,6 +437,7 @@ async def run_war_room_debate(
     description: str,
     preference_injection: str | None,
 ) -> dict[str, Any]:
+    backend = _resolve_war_room_llm()
     briefing = format_threat_briefing(
         threat_type,
         severity,
@@ -272,9 +449,9 @@ async def run_war_room_debate(
     pos_user = briefing + USER_SUFFIX_POSITION
 
     ciso_t, devops_t, arch_t = await asyncio.gather(
-        _call_anthropic(SYSTEM_CISO, pos_user),
-        _call_anthropic(SYSTEM_DEVOPS, pos_user),
-        _call_anthropic(SYSTEM_ARCHITECT, pos_user),
+        _call_llm(backend, SYSTEM_CISO, pos_user),
+        _call_llm(backend, SYSTEM_DEVOPS, pos_user),
+        _call_llm(backend, SYSTEM_ARCHITECT, pos_user),
     )
 
     ciso_action = _extract_proposed_action(ciso_t) or "Block Source IP"
@@ -301,9 +478,9 @@ async def run_war_room_debate(
     )
 
     cross_ciso, cross_devops, cross_arch = await asyncio.gather(
-        _call_anthropic(SYSTEM_CISO, cross_ciso_user),
-        _call_anthropic(SYSTEM_DEVOPS, cross_devops_user),
-        _call_anthropic(SYSTEM_ARCHITECT, cross_arch_user),
+        _call_llm(backend, SYSTEM_CISO, cross_ciso_user),
+        _call_llm(backend, SYSTEM_DEVOPS, cross_devops_user),
+        _call_llm(backend, SYSTEM_ARCHITECT, cross_arch_user),
     )
 
     cross_outputs: list[CrossExamOutput] = [
@@ -412,7 +589,8 @@ async def run_war_room_debate(
         ],
         "verdict": verdict,
         "transcript": transcript,
-        "model": MODEL,
+        "model": backend.model,
+        "llm_provider": backend.label,
     }
 
 

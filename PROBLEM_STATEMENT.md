@@ -239,19 +239,20 @@ heuristic baseline.
 
 | Requirement | Status |
 | --- | :---: |
-| Use OpenEnv (latest release) | ✅ `openenv-core>=0.2.3` in `requirements.txt`, `openenv.yaml` manifest valid |
-| Working training script (TRL or Unsloth, ideally Colab) | ✅ [`ImmunoOrg_Training_Colab.ipynb`](./ImmunoOrg_Training_Colab.ipynb) + full HPC pipeline at [`scripts/hpc/`](./scripts/hpc/) |
-| Evidence of training (loss + reward plots from real run) | ⏳ HPC run in progress — produces `evidence_grpo_training.png`, `evidence_eval_per_family.png`, `evidence_eval_summary.png` |
-| Mini-blog or < 2-min video, linked from README | ✅ [`BLOG_POST.md`](./BLOG_POST.md) + video script at [`VIDEO_SCRIPT.md`](./VIDEO_SCRIPT.md) |
-| HF Space hosting | ✅ https://huggingface.co/spaces/hirann/immunoorg-v3 (Docker SDK, RUNNING) |
-| README motivates problem + explains env + shows results | ✅ [`README.md`](./README.md) |
-| README links HF Space + all materials | ✅ Top-of-file table |
+| Use OpenEnv (latest release) | ✅ `openenv-core>=0.2.3` (latest on PyPI) in [`requirements.txt`](./requirements.txt) (Space Docker) + [`pyproject.toml`](./pyproject.toml); [`openenv.yaml`](./openenv.yaml) valid |
+| Working training script (TRL / Unsloth / other RL, ideally Colab) | ✅ [`ImmunoOrg_Training_Colab.ipynb`](./ImmunoOrg_Training_Colab.ipynb) (GRPO batch/gen divisibility fixed) + [`training/train_grpo.py`](./training/train_grpo.py) + [`scripts/hpc/`](./scripts/hpc/) |
+| Evidence of training (loss + reward plots from real run) | ✅ Multiple committed `evidence_*.png` from env rollouts; **add** `evidence_grpo_training.png` via Colab Step 4b or [`scripts/plot_grpo_log_history.py`](./scripts/plot_grpo_log_history.py) after any GRPO run |
+| Mini-blog on HF **or** <2-min YouTube, **URLs** in README | ⚠️ Source: [`BLOG_POST.md`](./BLOG_POST.md) + [`VIDEO_SCRIPT.md`](./VIDEO_SCRIPT.md) — follow [`PUBLISH_HACKATHON.md`](./PUBLISH_HACKATHON.md) and paste **public URLs** into [`README.md`](./README.md) |
+| HF Space hosting | ✅ https://huggingface.co/spaces/hirann/immunoorg-v3 |
+| README motivates problem + explains env + shows results + Space link | ✅ [`README.md`](./README.md) |
+| Judges’ reference | ✅ Linked from README (“what judges look for” Google Doc) |
+| Pre-submit | ✅ `python scripts/verify_hackathon_submission.py` |
 
 ## Engineering table-stakes checklist
 
 | Requirement | Status |
 | --- | :---: |
-| OpenEnv `Environment` base class | ✅ `ImmunoOrgEnvironment(OpenEnvEnvironment)` |
+| OpenEnv framework (`openenv-core`) | ✅ Declared in [`requirements.txt`](./requirements.txt); `import openenv.core` on Space; Gym-style sim + HTTP API per manifest |
 | Client / server separation (clients don't import server internals) | ✅ Wire schemas in `immunoorg/api_models.py`, `client.py` only imports from there |
 | Standard Gym-style API (`reset`, `step`, `state`) | ✅ All three present, both Python and HTTP |
 | Valid `openenv.yaml` manifest | ✅ Action / observation schemas, tasks, metrics, tags |

@@ -15,16 +15,27 @@ pinned: false
 
 | Resource | Link |
 | --- | --- |
-| 🟢 **Live demo (click → "Launch interactive demo")** | https://hirann-immunoorg-v3.hf.space |
-| 🤗 **HF Space** | https://huggingface.co/spaces/hirann/immunoorg-v3 |
+| 🟢 **Live Space (direct host)** | https://hirann-immunoorg-v3.hf.space |
+| 🤗 **HF Space card** | https://huggingface.co/spaces/hirann/immunoorg-v3 |
+| 🎭 **War Room (multi-agent debate UI)** | https://hirann-immunoorg-v3.hf.space/war-room |
 | 📋 **Problem statement (Round 2 formal)** | [`PROBLEM_STATEMENT.md`](./PROBLEM_STATEMENT.md) |
-| 📝 **Mini-blog** | [`BLOG_POST.md`](./BLOG_POST.md) |
+| 📝 **Mini-blog (source — paste into HF)** | [`BLOG_POST.md`](./BLOG_POST.md) |
+| ✍️ **Publish HF post + YouTube** | [`PUBLISH_HACKATHON.md`](./PUBLISH_HACKATHON.md) |
+| 🌐 **HF mini-blog (public URL)** | *Replace after publishing:* `HF_MINI_BLOG_URL` |
+| ▶️ **YouTube demo (&lt; 2 min)** | *Replace after upload:* `YOUTUBE_DEMO_URL` |
+| 📖 **Judges’ guide (official)** | [What judges look for](https://docs.google.com/document/d/1Odznuzwtb1ecDOm2t6ToZd4MuMXXfO6vWUGcxbC6mFs/edit?tab=t.0#bookmark=kix.2dz0x0nie3me) |
 | 🎬 **Video script (90 sec)** | [`VIDEO_SCRIPT.md`](./VIDEO_SCRIPT.md) |
-| 📔 **Training notebook (Colab)** | [`ImmunoOrg_Training_Colab.ipynb`](./ImmunoOrg_Training_Colab.ipynb) |
+| 📔 **Training notebook (Colab + TRL GRPO)** | [`ImmunoOrg_Training_Colab.ipynb`](./ImmunoOrg_Training_Colab.ipynb) |
 | 🖥️ **HPC training pipeline** | [`scripts/hpc/HANDOFF.md`](./scripts/hpc/HANDOFF.md) |
-| 🔬 **Research notes (architecture deep-dive)** | [`RESEARCH.md`](./RESEARCH.md) |
+| ✅ **Pre-submit checklist script** | `python scripts/verify_hackathon_submission.py` |
+| 🔬 **Research notes** | [`RESEARCH.md`](./RESEARCH.md) |
 | 🧪 **Judges' walkthrough** | [`JUDGING_GUIDE.md`](./JUDGING_GUIDE.md) |
 | 💻 **GitHub source** | https://github.com/Charannoo/immunoorg |
+
+**Before you submit:** publish a Hugging Face **post** or **YouTube** link (see [`PUBLISH_HACKATHON.md`](./PUBLISH_HACKATHON.md)), replace the two placeholder rows above with real URLs, run `python scripts/verify_hackathon_submission.py`, then push GitHub + Space.
+
+**Windows + TRL:** if `import trl` fails with `UnicodeDecodeError`, run with UTF-8:  
+`set PYTHONUTF8=1` (cmd) or `$env:PYTHONUTF8=1` (PowerShell).
 
 ---
 
@@ -79,12 +90,16 @@ Approval latency drops from 72h to 4h.*
 ![War Room debate + DevSecOps Mesh activity](./evidence_war_room_mesh.png)
 *Multi-agent War Room consensus dynamics + 4-gate DevSecOps Mesh event counts.*
 
-> **`evidence_grpo_training.png`** + **`evidence_eval_per_family.png`** +
-> **`evidence_eval_summary.png`** are produced by stages 2 + 3 of the
-> [HPC pipeline](./scripts/hpc/HANDOFF.md) currently running on the
-> supercomputer. They will be committed to the repo + auto-uploaded to
-> [`hirann/immunoorg-grpo-defender`](https://huggingface.co/hirann/immunoorg-grpo-defender)
-> when the run finishes.
+**GRPO training curve (`evidence_grpo_training.png`):** generate from a real TRL run, then:
+
+```bash
+python scripts/plot_grpo_log_history.py immunoorg-defender/grpo_log_history.json
+```
+
+Or run **Colab Step 4b**, which saves the figure directly. See [`training_logs/README.md`](./training_logs/README.md).
+
+Additional eval PNGs from the full HPC pipeline may be uploaded to
+[`hirann/immunoorg-grpo-defender`](https://huggingface.co/hirann/immunoorg-grpo-defender).
 
 ---
 
@@ -137,6 +152,8 @@ pytest tests -q   # 32 passed, 1 skipped (live API, only runs when uvicorn is up
 | `/directive` | POST | Inject a Board Directive mid-episode |
 | `/trained_status` | GET | Is the trained LoRA loaded yet? |
 | `/openenv.yaml` | GET | Serve the manifest |
+| `/war-room` | GET | Multi-agent War Room debate panel (Theme #1 demo) |
+| `/api/war-room` | POST | Run LLM debate (needs `GROQ_API_KEY` or other LLM key) |
 | `/admin/training/start` | GET | Kick off GRPO training (token-gated) |
 | `/admin/training/status` | GET | JSON status of the training job |
 | `/admin/training/log` | GET | Tail the training log |
@@ -173,14 +190,12 @@ Full details in [`PROBLEM_STATEMENT.md`](./PROBLEM_STATEMENT.md) §5c and
 
 ## Status
 
-- ✅ OpenEnv-compliant environment + manifest + Gym-style API + client/server separation
-- ✅ Hugging Face Space deployed: https://huggingface.co/spaces/hirann/immunoorg-v3
-- ✅ Visual Gradio demo at `/demo` with live trained-vs-baseline comparison
-- ✅ 1700+ scenario dataset generator + 5-family elite mix + heuristic-trajectory SFT data
-- ✅ 6 evidence PNGs committed
-- ✅ HPC training pipeline (4 SLURM stages, multi-GPU ready)
-- ⏳ HPC GRPO run in progress on supercomputer — will produce `evidence_grpo_training.png` + trained adapter at [`hirann/immunoorg-grpo-defender`](https://huggingface.co/hirann/immunoorg-grpo-defender)
-- ✅ Mini-blog at [`BLOG_POST.md`](./BLOG_POST.md), 90-sec video script at [`VIDEO_SCRIPT.md`](./VIDEO_SCRIPT.md)
-- ✅ pytest: 32 passed, 1 skipped
+- ✅ OpenEnv: `openenv-core>=0.2.3` (PyPI latest) in Space `requirements.txt` + `openenv.yaml` + HTTP `reset`/`step`/`state`; `import openenv.core` verified at runtime
+- ✅ Hugging Face Space: https://huggingface.co/spaces/hirann/immunoorg-v3
+- ✅ Gradio demo `/demo` + War Room `/war-room` (negotiation / coalition UI)
+- ✅ Colab + TRL GRPO + Unsloth; `training/train_grpo.py` exports `grpo_log_history.json` for plots
+- ✅ Evidence PNGs (env rollouts + rewards) committed; add `evidence_grpo_training.png` from Colab or `scripts/plot_grpo_log_history.py`
+- ✅ Writeups: [`BLOG_POST.md`](./BLOG_POST.md), [`VIDEO_SCRIPT.md`](./VIDEO_SCRIPT.md) — **publish** per [`PUBLISH_HACKATHON.md`](./PUBLISH_HACKATHON.md)
+- ✅ `python scripts/verify_hackathon_submission.py` for a quick checklist
 
 Built for the OpenEnv Hackathon (India 2026).

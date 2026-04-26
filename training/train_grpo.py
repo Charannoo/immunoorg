@@ -225,7 +225,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--epochs", type=int, default=3, help="Training epochs")
     parser.add_argument("--batch-size", type=int, default=2, help="Per-device batch size")
     parser.add_argument("--lr", type=float, default=5e-6, help="Learning rate")
-    parser.add_argument("--num-generations", type=int, default=4, help="GRPO generations per prompt")
+    parser.add_argument(
+        "--num-generations",
+        type=int,
+        default=2,
+        help="GRPO generations per prompt (must divide batch-size × prompts per step; default 2 with batch 2)",
+    )
     parser.add_argument("--max-completion-length", type=int, default=1024, help="Max completion tokens")
     return parser
 
@@ -301,7 +306,8 @@ def run_grpo_training(args: Namespace) -> None:
 
     # 2. Build dataset
     print("\nBuilding training dataset")
-    scenarios = build_training_prompts()
+    n_prompts = 8 if args.smoke_test else 200
+    scenarios = build_training_prompts(num_prompts=n_prompts)
     dataset = Dataset.from_list([{"prompt": s["prompt"]} for s in scenarios])
     print(f"   {len(dataset)} scenarios loaded")
 
@@ -350,6 +356,20 @@ def run_grpo_training(args: Namespace) -> None:
     # 5. Train
     print("\nStarting training...")
     trainer.train()
+
+    # 5b. Export log history for evidence plots (hackathon / README)
+    try:
+        from pathlib import Path as _Path
+
+        log_hist = getattr(getattr(trainer, "state", None), "log_history", None) or []
+        out_dir = _Path(args.output_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        log_path = out_dir / "grpo_log_history.json"
+        with open(log_path, "w", encoding="utf-8") as f:
+            json.dump(log_hist, f, indent=2)
+        print(f"   Wrote training log history -> {log_path}")
+    except Exception as _e:
+        print(f"   (could not export log_history: {_e})")
 
     # 6. Save
     print(f"\nSaving model to {args.output_dir}")

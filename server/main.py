@@ -203,6 +203,7 @@ contain cyber-attacks <strong>and</strong> restructure the organization that
 lets them succeed. Built for the OpenEnv Hackathon (India 2026).</p>
 
 <a class="cta" href="/demo">▶ Launch interactive demo</a>
+<a class="cta secondary" href="/war-room">🎭 War Room (multi-agent debate)</a>
 <a class="cta secondary" href="/docs">OpenAPI / FastAPI docs</a>
 
 <p class="sub" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;">
@@ -221,14 +222,18 @@ lets them succeed. Built for the OpenEnv Hackathon (India 2026).</p>
   <li><code>GET /health</code> — liveness + version</li>
   <li><code>GET /trained_status</code> — is the trained LoRA loaded yet?</li>
   <li><code>GET /openenv.yaml</code> — manifest</li>
+  <li><code>GET /war-room</code> — Theme #1 War Room UI</li>
+  <li><code>POST /api/war-room</code> — LLM debate API</li>
 </ul>
 
 <h3>Resources</h3>
 <ul>
   <li><a href="https://github.com/Charannoo/immunoorg">GitHub source</a></li>
   <li><a href="https://github.com/Charannoo/immunoorg/blob/master/PROBLEM_STATEMENT.md">PROBLEM_STATEMENT.md</a> — Round 2 formal definition</li>
-  <li><a href="https://github.com/Charannoo/immunoorg/blob/master/BLOG_POST.md">BLOG_POST.md</a> — story-format writeup</li>
-  <li><a href="https://github.com/Charannoo/immunoorg/blob/master/ImmunoOrg_Training_Colab.ipynb">Training Colab notebook</a></li>
+  <li><a href="https://github.com/Charannoo/immunoorg/blob/master/BLOG_POST.md">BLOG_POST.md</a> — paste into a Hugging Face post</li>
+  <li><a href="https://github.com/Charannoo/immunoorg/blob/master/PUBLISH_HACKATHON.md">PUBLISH_HACKATHON.md</a> — submission URLs checklist</li>
+  <li><a href="https://github.com/Charannoo/immunoorg/blob/master/ImmunoOrg_Training_Colab.ipynb">Training Colab notebook</a> (TRL GRPO)</li>
+  <li><a href="https://docs.google.com/document/d/1Odznuzwtb1ecDOm2t6ToZd4MuMXXfO6vWUGcxbC6mFs/edit?tab=t.0#bookmark=kix.2dz0x0nie3me">What judges look for</a> (official guide)</li>
 </ul>
 </div></body></html>
 """
