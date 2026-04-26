@@ -23,7 +23,7 @@ Mounted at ``/demo`` on the FastAPI app via ``gr.mount_gradio_app``.
 
 from __future__ import annotations
 
-import json
+from collections import Counter
 from typing import Any
 
 import gradio as gr
@@ -314,6 +314,100 @@ def _frames_to_table(frames):
     return out
 
 
+def _feature_dashboard_figure(heur_frames: list, trained_frames: list):
+    """Plotly: pipeline integrity, honeypots, honeytokens, War Room turns."""
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+
+    fig = make_subplots(
+        rows=4,
+        cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.05,
+        subplot_titles=(
+            "4-gate DevSecOps mesh — pipeline integrity (1.0 = clean)",
+            "Honeypots deployed (moving-target / decoy layer)",
+            "Honeytoken activations (trap callbacks)",
+            "War Room — consensus rounds (CISO / DevOps / Architect)",
+        ),
+    )
+    specs = [
+        ("mesh_ok", "Heuristic", "#ff7f0e", "Trained", "#1f77b4"),
+        ("honeypots", "Heuristic honeypots", "#ff7f0e", "Trained honeypots", "#1f77b4"),
+        ("honeytokens", "Heuristic honeytokens", "#ff7f0e", "Trained honeytokens", "#1f77b4"),
+        ("war_room", "Heuristic WR turns", "#ff7f0e", "Trained WR turns", "#1f77b4"),
+    ]
+    for row, (key, n1, c1, n2, c2) in enumerate(specs, start=1):
+        xh = [f["step"] for f in heur_frames]
+        yh = [f[key] for f in heur_frames]
+        xt = [f["step"] for f in trained_frames]
+        yt = [f[key] for f in trained_frames]
+        fig.add_trace(
+            go.Scatter(
+                x=xh, y=yh, mode="lines+markers", name=n1,
+                line=dict(color=c1, shape="hv"), legendgroup="h", showlegend=(row == 1),
+            ),
+            row=row, col=1,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=xt, y=yt, mode="lines+markers", name=n2,
+                line=dict(color=c2, shape="hv", dash="dash"), legendgroup="t", showlegend=(row == 1),
+            ),
+            row=row, col=1,
+        )
+    fig.update_layout(
+        height=780,
+        margin=dict(t=36, b=24, l=48, r=24),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
+        font=dict(size=11),
+    )
+    fig.update_xaxes(title_text="step", row=4, col=1)
+    return fig
+
+
+def _mesh_gate_bar_figure(heur_frames: list, trained_frames: list):
+    """Grouped bar: how often each mesh gate fired (per episode)."""
+    import plotly.graph_objects as go
+
+    def counts(frames: list) -> dict[str, int]:
+        c: Counter[str] = Counter()
+        for f in frames:
+            g = str(f.get("gate") or "").strip()
+            if g and g != "—":
+                # Short labels for x axis
+                short = g.replace("gate", "").replace("_", " ")[:22]
+                c[short] += 1
+        return dict(c)
+
+    ch, ct = counts(heur_frames), counts(trained_frames)
+    if not ch and not ct:
+        fig = go.Figure()
+        fig.add_annotation(
+            text="No mesh gate catches this episode (pipeline stayed clean).",
+            xref="paper", yref="paper", x=0.5, y=0.5, showarrow=False,
+        )
+        fig.update_layout(height=280, margin=dict(t=40, b=20))
+        return fig
+
+    keys = sorted(set(ch) | set(ct), key=lambda k: (ch.get(k, 0) + ct.get(k, 0)), reverse=True)[:12]
+    fig = go.Figure(
+        data=[
+            go.Bar(name="Heuristic", x=keys, y=[ch.get(k, 0) for k in keys], marker_color="#ff7f0e"),
+            go.Bar(name="Trained", x=keys, y=[ct.get(k, 0) for k in keys], marker_color="#1f77b4"),
+        ]
+    )
+    fig.update_layout(
+        title="Mesh gate catches (count of steps where each gate flagged)",
+        barmode="group",
+        height=320,
+        margin=dict(t=50, b=80, l=48, r=24),
+        xaxis_tickangle=-28,
+        font=dict(size=11),
+    )
+    return fig
+
+
 def _trained_status_text() -> str:
     try:
         from immunoorg.trained_agent import TrainedDefender
@@ -378,11 +472,16 @@ def run_demo(scenario_label, max_steps, showcase_migration):
 {verdict}
 """
 
+    dash = _feature_dashboard_figure(heur_frames, trained_frames)
+    gates = _mesh_gate_bar_figure(heur_frames, trained_frames)
+
     return (
         summary_md,
         _frames_to_table(heur_frames),
         _frames_to_table(trained_frames),
         chart_data,
+        dash,
+        gates,
         _trained_status_text(),
     )
 
@@ -416,6 +515,8 @@ baseline play it head-to-head against the GRPO-trained LLM defender.
 | **honeypots / migr / honeytokens** | **50-step polymorphic migration** (`migration_engine.py`): decoy phase, honeypot nodes, honeytoken activations — *not* a separate “honeycomb” UI; honeypots are tactical decoys here. |
 | **attack vec** | Active attack vector (feeds **MITRE** / kill-chain context in the full env). |
 | **directive** | Board directive text when the scenario injects one. |
+
+**Charts below:** interactive **Plotly** dashboards — pipeline/decoys/War Room time series, plus **mesh gate** catch counts.
 
 > 📚 [Problem statement](https://github.com/Charannoo/immunoorg/blob/master/PROBLEM_STATEMENT.md)
 > · [Source](https://github.com/Charannoo/immunoorg)
@@ -455,6 +556,11 @@ baseline play it head-to-head against the GRPO-trained LLM defender.
             height=260,
         )
 
+        gr.Markdown("### Feature dashboards (Plotly — zoom/pan/hover)")
+        with gr.Row():
+            signals_plot = gr.Plot(label="Pipeline, honeypots, honeytokens, War Room")
+            gate_plot = gr.Plot(label="Which mesh gate fired (AST / semantic / Terraform / sandbox)")
+
         gr.Markdown(
             """
 ---
@@ -477,7 +583,10 @@ Uncheck **Demo: migration + honeypot** for a “pure” heuristic/LLM comparison
         run_btn.click(
             run_demo,
             inputs=[scenario_dd, steps_sl, mig_cb],
-            outputs=[summary_md, heur_table, trained_table, chart, status_md],
+            outputs=[
+                summary_md, heur_table, trained_table, chart,
+                signals_plot, gate_plot, status_md,
+            ],
         )
 
     return demo
