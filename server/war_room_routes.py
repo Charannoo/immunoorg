@@ -1,19 +1,16 @@
 """
-War Room — HTML page and JSON API (minimal wiring for FastAPI app).
+War Room — JSON API only. The judge-facing UI lives on the Gradio **/demo** page
+(accordion: Live LLM War Room).
 """
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from server.war_room_debate import run_war_room_debate
 
 router = APIRouter(tags=["war-room"])
-_HTML_PATH = Path(__file__).resolve().parent / "war_room_page.html"
 
 
 class WarRoomRequest(BaseModel):
@@ -23,13 +20,6 @@ class WarRoomRequest(BaseModel):
     target_service: str = Field(min_length=1)
     description: str = Field(min_length=1)
     preference_injection: str | None = None
-
-
-@router.get("/war-room", response_class=HTMLResponse)
-async def war_room_page():
-    if not _HTML_PATH.is_file():
-        raise HTTPException(status_code=500, detail="war_room_page.html missing")
-    return HTMLResponse(_HTML_PATH.read_text(encoding="utf-8"))
 
 
 @router.post("/api/war-room")

@@ -9,7 +9,8 @@ Supports multiple backends (no paid Anthropic required):
 - **Anthropic**: ``ANTHROPIC_API_KEY`` + optional ``WAR_ROOM_MODEL`` for Claude.
 
 Orchestrates 3 parallel initial-position calls, then 3 parallel cross-examination
-calls, vote tally, and lightweight hallucination checks. Used by POST /api/war-room.
+calls, vote tally, and lightweight hallucination checks. Used from Gradio **/demo**
+(War Room accordion) and by POST /api/war-room.
 """
 
 from __future__ import annotations

@@ -3,7 +3,7 @@ Hackathon-judge demo UI for the live HF Space.
 
 What this gives the judge when they click the Space link:
 
-- One-screen Gradio panel.
+- One-screen Gradio panel (episode demo + **War Room** LLM debate accordion).
 - Pick a scenario family from the 5 elite ones (basic / RAG / executive
   alignment / silo-breaker / stealth-adaptive).
 - Click "Run episode" -> we play the heuristic policy for up to 30 steps
@@ -23,10 +23,13 @@ Mounted at ``/demo`` on the FastAPI app via ``gr.mount_gradio_app``.
 
 from __future__ import annotations
 
+import asyncio
 from collections import Counter
 from typing import Any
 
 import gradio as gr
+
+from server.war_room_debate import run_war_room_debate
 
 from immunoorg.agents.defender import (
     format_observation_for_llm,
@@ -486,6 +489,84 @@ def run_demo(scenario_label, max_steps, showcase_migration):
     )
 
 
+# ─── War Room (LLM debate) — same Gradio page as episode demo ────────────
+
+
+def _format_war_room_markdown(data: dict[str, Any]) -> str:
+    lines: list[str] = []
+    lines.append(
+        f"*LLM: `{data.get('model')}` · backend: `{data.get('llm_provider', '?')}`*\n"
+    )
+    verdict = data.get("verdict") or {}
+    lines.append("## Final verdict\n")
+    ca = verdict.get("consensus_action")
+    lines.append(
+        f"**{verdict.get('status', '—')}**"
+        + (f" — action: `{ca}`" if ca else "")
+        + "\n"
+    )
+    for v in verdict.get("votes_detail") or []:
+        lines.append(f"- **{v.get('agent')}:** {v.get('action')}")
+    lines.append("\n## Initial positions\n")
+    for a in data.get("agents") or []:
+        warn = ""
+        if a.get("hallucination_flags"):
+            warn = " ⚠️ *flags (cross-exam)*: " + "; ".join(a["hallucination_flags"])
+        lines.append(
+            f"### {a.get('display_name', '?')}{warn}\n\n"
+            f"**Proposed action:** `{a.get('proposed_action', '—')}`\n\n"
+            f"{a.get('position_text', '')}\n"
+        )
+    lines.append("\n## Cross-examination\n")
+    for c in data.get("cross_examination") or []:
+        xf = ""
+        if c.get("hallucination_flags"):
+            xf = "\n\n⚠️ " + " · ".join(c["hallucination_flags"])
+        lines.append(
+            f"**{c.get('examiner_name')}** → **{c.get('target_name')}**{xf}\n\n"
+            f"{c.get('text', '')}\n\n---\n"
+        )
+    return "\n".join(lines)
+
+
+def _war_room_handler(
+    threat_type: str,
+    severity: float,
+    source_ip: str,
+    target_service: str,
+    description: str,
+    preference: str,
+) -> str:
+    tt = (threat_type or "").strip()
+    sip = (source_ip or "").strip()
+    tgt = (target_service or "").strip()
+    desc = (description or "").strip()
+    if not tt or not sip or not tgt or not desc:
+        return "**Fill threat type, source IP, target service, and description.**"
+    pref = (preference or "").strip() or None
+    try:
+        sev = int(severity)
+    except (TypeError, ValueError):
+        sev = 5
+    sev = max(1, min(10, sev))
+    try:
+        data = asyncio.run(
+            run_war_room_debate(
+                threat_type=tt,
+                severity=sev,
+                source_ip=sip,
+                target_service=tgt,
+                description=desc,
+                preference_injection=pref,
+            )
+        )
+    except RuntimeError as e:
+        return f"**Configuration error:** {e}"
+    except Exception as e:
+        return f"**Error:** `{type(e).__name__}: {e}`"
+    return _format_war_room_markdown(data)
+
+
 # ─── Build the UI ──────────────────────────────────────────────────────────
 
 
@@ -524,6 +605,54 @@ baseline play it head-to-head against the GRPO-trained LLM defender.
 > · [Training notebook](https://github.com/Charannoo/immunoorg/blob/master/ImmunoOrg_Training_Colab.ipynb)
             """
         )
+
+        with gr.Accordion(
+            "🎭 Live LLM War Room — 3-agent debate (CISO / DevOps / Architect)",
+            open=False,
+        ):
+            gr.Markdown(
+                "Same page as the episode demo. Runs **initial positions** + **cross-examination** "
+                "via your configured LLM API (**GROQ_API_KEY**, **OPENAI_API_KEY**, or "
+                "**ANTHROPIC_API_KEY** in Space secrets). Optional: `POST /api/war-room` for scripts."
+            )
+            with gr.Row():
+                wr_threat = gr.Textbox(
+                    label="Threat type",
+                    placeholder="e.g. SQL injection probe",
+                )
+                wr_sev = gr.Slider(
+                    minimum=1,
+                    maximum=10,
+                    value=5,
+                    step=1,
+                    label="Severity (1–10)",
+                )
+            with gr.Row():
+                wr_ip = gr.Textbox(label="Source IP", placeholder="203.0.113.42")
+                wr_tgt = gr.Textbox(label="Target service", placeholder="api-payments")
+            wr_desc = gr.Textbox(
+                label="Description",
+                lines=3,
+                placeholder="What was observed…",
+            )
+            wr_pref = gr.Textbox(
+                label="Preference injection (optional board directive)",
+                placeholder="Breaks deadlock → Architect wins",
+            )
+            wr_btn = gr.Button("Run War Room debate", variant="secondary")
+            wr_out = gr.Markdown("*Results appear here after you run the debate.*")
+            wr_btn.click(
+                _war_room_handler,
+                inputs=[
+                    wr_threat,
+                    wr_sev,
+                    wr_ip,
+                    wr_tgt,
+                    wr_desc,
+                    wr_pref,
+                ],
+                outputs=[wr_out],
+            )
 
         status_md = gr.Markdown(_trained_status_text())
 

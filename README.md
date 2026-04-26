@@ -20,7 +20,7 @@ Run **`python scripts/make_hackathon_training_figure.py`** to create **`evidence
 | --- | --- |
 | 🟢 **Live Space (direct host)** | https://hirann-immunoorg-v3.hf.space |
 | 🤗 **HF Space card** | https://huggingface.co/spaces/hirann/immunoorg-v3 |
-| 🎭 **War Room (multi-agent debate UI)** | https://hirann-immunoorg-v3.hf.space/war-room |
+| 🎭 **War Room (inside demo)** | Open **/demo** → expand *Live LLM War Room* accordion |
 | 📋 **Problem statement (Round 2 formal)** | [`PROBLEM_STATEMENT.md`](./PROBLEM_STATEMENT.md) |
 | 📝 **Mini-blog (source — paste into HF)** | [`BLOG_POST.md`](./BLOG_POST.md) |
 | ✍️ **Publish HF post + YouTube** | [`PUBLISH_HACKATHON.md`](./PUBLISH_HACKATHON.md) |
@@ -157,8 +157,8 @@ pytest tests -q   # 32 passed, 1 skipped (live API, only runs when uvicorn is up
 | `/directive` | POST | Inject a Board Directive mid-episode |
 | `/trained_status` | GET | Is the trained LoRA loaded yet? |
 | `/openenv.yaml` | GET | Serve the manifest |
-| `/war-room` | GET | Multi-agent War Room debate panel (Theme #1 demo) |
-| `/api/war-room` | POST | Run LLM debate (needs `GROQ_API_KEY` or other LLM key) |
+| `/demo` | GET | Gradio: episode demo + **War Room** accordion (Theme #1 LLM debate) |
+| `/api/war-room` | POST | Optional JSON API for the same debate backend |
 | `/admin/training/start` | GET | Kick off GRPO training (token-gated) |
 | `/admin/training/status` | GET | JSON status of the training job |
 | `/admin/training/log` | GET | Tail the training log |
@@ -197,7 +197,7 @@ Full details in [`PROBLEM_STATEMENT.md`](./PROBLEM_STATEMENT.md) §5c and
 
 - ✅ OpenEnv: `openenv-core>=0.2.3` (PyPI latest) in Space `requirements.txt` + `openenv.yaml` + HTTP `reset`/`step`/`state`; `import openenv.core` verified at runtime
 - ✅ Hugging Face Space: https://huggingface.co/spaces/hirann/immunoorg-v3
-- ✅ Gradio demo `/demo` + War Room `/war-room` (negotiation / coalition UI)
+- ✅ Gradio `/demo` includes **War Room** accordion (negotiation / coalition LLM UI)
 - ✅ Colab + TRL GRPO + Unsloth; `training/train_grpo.py` exports `grpo_log_history.json` for plots
 - ✅ Evidence PNGs (env rollouts + rewards) committed; add `evidence_grpo_training.png` from Colab or `scripts/plot_grpo_log_history.py`
 - ✅ Writeups: [`BLOG_POST.md`](./BLOG_POST.md), [`VIDEO_SCRIPT.md`](./VIDEO_SCRIPT.md) — **publish** per [`PUBLISH_HACKATHON.md`](./PUBLISH_HACKATHON.md)

@@ -203,7 +203,6 @@ contain cyber-attacks <strong>and</strong> restructure the organization that
 lets them succeed. Built for the OpenEnv Hackathon (India 2026).</p>
 
 <a class="cta" href="/demo">▶ Launch interactive demo</a>
-<a class="cta secondary" href="/war-room">🎭 War Room (multi-agent debate)</a>
 <a class="cta secondary" href="/docs">OpenAPI / FastAPI docs</a>
 
 <p class="sub" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;">
@@ -222,8 +221,8 @@ lets them succeed. Built for the OpenEnv Hackathon (India 2026).</p>
   <li><code>GET /health</code> — liveness + version</li>
   <li><code>GET /trained_status</code> — is the trained LoRA loaded yet?</li>
   <li><code>GET /openenv.yaml</code> — manifest</li>
-  <li><code>GET /war-room</code> — Theme #1 War Room UI</li>
-  <li><code>POST /api/war-room</code> — LLM debate API</li>
+  <li><code>GET /demo</code> — Gradio UI (episode demo + <strong>War Room</strong> accordion)</li>
+  <li><code>POST /api/war-room</code> — LLM debate JSON API (optional)</li>
 </ul>
 
 <h3>Resources</h3>

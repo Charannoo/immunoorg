@@ -9,7 +9,7 @@ You do **not** need a finished local GRPO CPU run to submit. Judges need a **run
 ## 0. Hard prerequisites (30–45 min)
 
 1. **Hugging Face Space** — push latest `master` so Docker rebuilds (`openenv-core` in `requirements.txt`, War Room, landing links).
-2. **Smoke-test the Space** (incognito): `/` → **Launch demo** → `/war-room` (set **`GROQ_API_KEY`** or **`ANTHROPIC_API_KEY`** in Space **Secrets** if you want live LLM debate).
+2. **Smoke-test the Space** (incognito): `/` → **Launch demo** → expand **Live LLM War Room** (set **`GROQ_API_KEY`** etc. in **Secrets** for live LLM debate).
 3. **Public writeup URL** — publish a short **HF Post** (copy from [`BLOG_POST.md`](./BLOG_POST.md)) **or** upload **&lt;2 min** YouTube using [`VIDEO_SCRIPT.md`](./VIDEO_SCRIPT.md). Paste the **public URL** into [`README.md`](./README.md) (replace `HF_MINI_BLOG_URL` / `YOUTUBE_DEMO_URL`).
 
 ## 1. GRPO training plot (45–60 min if you have Colab GPU)
