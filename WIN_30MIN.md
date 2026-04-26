@@ -31,7 +31,14 @@ This creates **`evidence_grpo_training.png`** (real env curve + pointer to Colab
 git add evidence_grpo_training.png README.md
 git commit -m "Add hackathon training evidence figure + HF blog URL"
 git push origin master
-git push <your-hf-remote> master
+```
+
+If your **Space is connected to this GitHub repo** in HF settings, it will **rebuild on its own** after `git push origin`.
+
+Otherwise push the Space git remote (needs HF token), e.g.:
+
+```bash
+git push hf-new master
 ```
 
 ## 5. Click test (2 min)
