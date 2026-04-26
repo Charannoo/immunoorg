@@ -154,24 +154,80 @@ async def health():
     }
 
 
-@app.get("/")
+@app.get("/trained_status")
+async def trained_status():
+    """Probe whether a GRPO-trained LoRA adapter is available on the Hub yet.
+
+    The HPC pipeline pushes to ``hirann/immunoorg-grpo-defender`` once
+    training completes. This endpoint lets the demo UI show a live
+    "trained agent: ready / pending" badge without us redeploying.
+    """
+    try:
+        from immunoorg.trained_agent import TrainedDefender
+
+        return TrainedDefender.get().status()
+    except Exception as e:
+        return {
+            "loaded": False,
+            "load_attempted": False,
+            "error": f"{type(e).__name__}: {e}",
+        }
+
+
+_LANDING_HTML = """<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><title>ImmunoOrg 2.0 — OpenEnv environment</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  body {font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;
+        background:#0d1117;color:#c9d1d9;margin:0;padding:48px 24px;}
+  .wrap {max-width:740px;margin:0 auto;}
+  h1 {font-size:1.8em;margin:0 0 12px;}
+  .sub {color:#8b949e;font-size:0.95em;margin-bottom:24px;}
+  .cta {display:inline-block;padding:14px 22px;background:#2da44e;color:white;
+        border-radius:8px;text-decoration:none;font-weight:600;font-size:1.05em;
+        margin:8px 8px 24px 0;}
+  .cta.secondary {background:#21262d;color:#c9d1d9;border:1px solid #30363d;}
+  code {background:#161b22;padding:2px 6px;border-radius:4px;font-size:0.85em;}
+  ul {line-height:1.7;}
+  a {color:#58a6ff;}
+</style></head>
+<body><div class="wrap">
+<h1>🛡️ ImmunoOrg 2.0</h1>
+<p class="sub">An OpenEnv RL environment where an LLM defender learns to
+contain cyber-attacks <strong>and</strong> restructure the organization that
+lets them succeed. Built for the OpenEnv Hackathon (India 2026).</p>
+
+<a class="cta" href="/demo">▶ Launch interactive demo</a>
+<a class="cta secondary" href="/docs">OpenAPI / FastAPI docs</a>
+
+<h3>OpenEnv API endpoints (Gym-style)</h3>
+<ul>
+  <li><code>POST /reset</code> — start an episode</li>
+  <li><code>POST /step</code> — apply an action</li>
+  <li><code>GET /state</code> — full server-side state</li>
+  <li><code>GET /health</code> — liveness + version</li>
+  <li><code>GET /trained_status</code> — is the trained LoRA loaded yet?</li>
+  <li><code>GET /openenv.yaml</code> — manifest</li>
+</ul>
+
+<h3>Resources</h3>
+<ul>
+  <li><a href="https://github.com/Charannoo/immunoorg">GitHub source</a></li>
+  <li><a href="https://github.com/Charannoo/immunoorg/blob/master/PROBLEM_STATEMENT.md">PROBLEM_STATEMENT.md</a> — Round 2 formal definition</li>
+  <li><a href="https://github.com/Charannoo/immunoorg/blob/master/BLOG_POST.md">BLOG_POST.md</a> — story-format writeup</li>
+  <li><a href="https://github.com/Charannoo/immunoorg/blob/master/ImmunoOrg_Training_Colab.ipynb">Training Colab notebook</a></li>
+</ul>
+</div></body></html>
+"""
+
+
+@app.get("/", response_class=PlainTextResponse)
 async def root():
-    return {
-        "name": "ImmunoOrg 2.0",
-        "description": "Autonomous, Self-Healing Enterprise — OpenEnv RL Environment",
-        "endpoints": [
-            "/health",
-            "/reset",
-            "/step",
-            "/state",
-            "/admin/training/start",
-            "/admin/training/status",
-            "/admin/training/log",
-        ],
-        "hf_space": "https://huggingface.co/spaces/hirann/immunoorg-2",
-        "version": "2.0.0",
-        "training": "Set TRAINING_SECRET (Space secret). Start: GET /admin/training/start?token=...&smoke_test=true",
-    }
+    """Landing page. Judges land here → see the big 'Launch demo' button."""
+    from fastapi.responses import HTMLResponse
+
+    return HTMLResponse(_LANDING_HTML)
 
 
 @app.get("/admin/training/start")
@@ -333,6 +389,29 @@ async def get_openenv_yaml():
         return PlainTextResponse(content, media_type="text/yaml")
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="openenv.yaml not found")
+
+
+# ─── Mount the Gradio visual demo at /demo ──────────────────────────────────
+#
+# Judges land on the Space at "/" -> the root() handler returns JSON metadata
+# with a link to /demo. The Gradio UI mounts at /demo and gives a click-to-run
+# heuristic-vs-trained-LLM head-to-head over the 5 elite scenarios.
+#
+# Importing demo_ui pulls in gradio, which is not in requirements for the
+# OpenEnv stub install — guard it so the API still boots if gradio isn't
+# present.
+
+try:
+    import gradio as gr  # type: ignore
+
+    from server.demo_ui import build_demo
+
+    _demo = build_demo()
+    app = gr.mount_gradio_app(app, _demo, path="/demo")
+except Exception as _demo_exc:  # pragma: no cover
+    import logging as _logging
+
+    _logging.warning("demo UI not mounted: %s", _demo_exc)
 
 
 if __name__ == "__main__":

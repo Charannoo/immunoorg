@@ -1,10 +1,15 @@
-fastapi
-uvicorn[standard]
-pydantic
-trl
-datasets
-transformers
-peft
-huggingface_hub
-accelerate
-torch
+# Runtime deps for the HF Space (Docker) — kept slim because the Space
+# only serves the OpenEnv API + the /demo Gradio UI. Heavy training deps
+# are in requirements-training.txt and only installed for HPC / Colab.
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.6
+networkx>=3.2
+numpy>=1.26,<2.0
+matplotlib>=3.7
+plotly>=5.18
+gradio>=4.20
+huggingface_hub>=0.24
+pyyaml>=6.0
+rich>=13.7
+requests>=2.32
