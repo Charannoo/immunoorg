@@ -1,5 +1,7 @@
 # Hackathon submission — publish these URLs (5 minutes)
 
+**If you are hours from the deadline, use [`SUBMIT_NOW.md`](./SUBMIT_NOW.md) as the master checklist** — this file is only the HF/YouTube paste instructions.
+
 Non-negotiables ask for a **public mini-blog on Hugging Face** *or* a **&lt;2 minute YouTube** video, with everything linked from **README.md**.
 
 Your in-repo writeups are already done: [`BLOG_POST.md`](./BLOG_POST.md), [`VIDEO_SCRIPT.md`](./VIDEO_SCRIPT.md).

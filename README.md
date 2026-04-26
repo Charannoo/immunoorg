@@ -13,6 +13,8 @@ pinned: false
 > cyber-attacks **and** restructure the organization that lets them
 > succeed. Built for the OpenEnv Hackathon (India 2026).
 
+**⏱ Crunch time?** Follow **[`SUBMIT_NOW.md`](./SUBMIT_NOW.md)** (Space + HF post + Colab GRPO plot — skip slow local CPU training).
+
 | Resource | Link |
 | --- | --- |
 | 🟢 **Live Space (direct host)** | https://hirann-immunoorg-v3.hf.space |
@@ -25,7 +27,8 @@ pinned: false
 | ▶️ **YouTube demo (&lt; 2 min)** | *Replace after upload:* `YOUTUBE_DEMO_URL` |
 | 📖 **Judges’ guide (official)** | [What judges look for](https://docs.google.com/document/d/1Odznuzwtb1ecDOm2t6ToZd4MuMXXfO6vWUGcxbC6mFs/edit?tab=t.0#bookmark=kix.2dz0x0nie3me) |
 | 🎬 **Video script (90 sec)** | [`VIDEO_SCRIPT.md`](./VIDEO_SCRIPT.md) |
-| 📔 **Training notebook (Colab + TRL GRPO)** | [`ImmunoOrg_Training_Colab.ipynb`](./ImmunoOrg_Training_Colab.ipynb) |
+| 📔 **Training notebook (Colab + TRL GRPO)** | [Open in Colab](https://colab.research.google.com/github/Charannoo/immunoorg/blob/master/ImmunoOrg_Training_Colab.ipynb) · [`ImmunoOrg_Training_Colab.ipynb`](./ImmunoOrg_Training_Colab.ipynb) |
+| ⚡ **Deadline playbook (~5 h)** | [`SUBMIT_NOW.md`](./SUBMIT_NOW.md) |
 | 🖥️ **HPC training pipeline** | [`scripts/hpc/HANDOFF.md`](./scripts/hpc/HANDOFF.md) |
 | ✅ **Pre-submit checklist script** | `python scripts/verify_hackathon_submission.py` |
 | 🔬 **Research notes** | [`RESEARCH.md`](./RESEARCH.md) |

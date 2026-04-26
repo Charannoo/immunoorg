@@ -310,6 +310,14 @@ def run_grpo_training(args: Namespace) -> None:
     scenarios = build_training_prompts(num_prompts=n_prompts)
     dataset = Dataset.from_list([{"prompt": s["prompt"]} for s in scenarios])
     print(f"   {len(dataset)} scenarios loaded")
+    if args.smoke_test:
+        print(
+            "   [smoke-test] Using a tiny dataset, 2 optimizer steps, max_completion_length capped at 256."
+        )
+        if len(dataset) > 32:
+            print(
+                "   [smoke-test] WARNING: dataset is large for a smoke run — use latest train_grpo.py (8 prompts)."
+            )
 
     # 3. Configure GRPO
     max_steps = 2 if args.smoke_test else None
@@ -319,10 +327,19 @@ def run_grpo_training(args: Namespace) -> None:
     except Exception:
         on_cpu = True
 
+    # Smoke: short completions = much faster generation on CPU
+    max_len = min(args.max_completion_length, 256) if args.smoke_test else args.max_completion_length
+
+    if on_cpu:
+        print(
+            "\n   NOTE: No CUDA — GRPO spends most of its time in **generation** (not shown in % bar).\n"
+            "   First step can take **many minutes** on CPU for a 0.5B model. For quick runs use Colab GPU.\n"
+        )
+
     grpo_kwargs = dict(
         output_dir=args.output_dir,
         num_generations=args.num_generations,
-        max_completion_length=args.max_completion_length,
+        max_completion_length=max_len,
         per_device_train_batch_size=args.batch_size,
         learning_rate=args.lr,
         num_train_epochs=args.epochs,
