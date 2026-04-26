@@ -608,7 +608,7 @@ baseline play it head-to-head against the GRPO-trained LLM defender.
 
         with gr.Accordion(
             "🎭 Live LLM War Room — 3-agent debate (CISO / DevOps / Architect)",
-            open=False,
+            open=True,
         ):
             gr.Markdown(
                 "Same page as the episode demo. Runs **initial positions** + **cross-examination** "

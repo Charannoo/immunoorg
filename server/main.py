@@ -200,7 +200,9 @@ _LANDING_HTML = """<!doctype html>
 <h1>🛡️ ImmunoOrg 2.0</h1>
 <p class="sub">An OpenEnv RL environment where an LLM defender learns to
 contain cyber-attacks <strong>and</strong> restructure the organization that
-lets them succeed. Built for the OpenEnv Hackathon (India 2026).</p>
+lets them succeed. Built for the OpenEnv Hackathon (India 2026).
+<strong>Judges:</strong> use <a href="/demo">/demo</a> for the episode runner <em>and</em>
+the <strong>Live LLM War Room</strong> (Theme #1) on the same page.</p>
 
 <a class="cta" href="/demo">▶ Launch interactive demo</a>
 <a class="cta secondary" href="/docs">OpenAPI / FastAPI docs</a>

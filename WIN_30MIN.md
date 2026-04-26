@@ -43,7 +43,7 @@ git push hf-new master
 
 ## 5. Click test (2 min)
 
-Open Space → `/demo` → expand **Live LLM War Room** (set **GROQ_API_KEY** in Space secrets if needed).
+Open Space → `/demo` → **Live LLM War Room** opens at top of page (set **GROQ_API_KEY** in Space secrets if needed).
 
 ---
 

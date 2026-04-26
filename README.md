@@ -13,6 +13,10 @@ pinned: false
 > cyber-attacks **and** restructure the organization that lets them
 > succeed. Built for the OpenEnv Hackathon (India 2026).
 
+### For judges (60 s)
+
+→ **[`JUDGES_60_SECONDS.md`](./JUDGES_60_SECONDS.md)** · Live app: https://hirann-immunoorg-v3.hf.space/demo (War Room + episode demo on **one** page).
+
 **⏱ Crunch time?** **[`WIN_30MIN.md`](./WIN_30MIN.md)** (fastest calm path) → then **[`SUBMIT_NOW.md`](./SUBMIT_NOW.md)** for the full checklist.  
 Run **`python scripts/make_hackathon_training_figure.py`** to create **`evidence_grpo_training.png`** in ~2 minutes (real env curve + Colab pointer).
 
@@ -20,7 +24,8 @@ Run **`python scripts/make_hackathon_training_figure.py`** to create **`evidence
 | --- | --- |
 | 🟢 **Live Space (direct host)** | https://hirann-immunoorg-v3.hf.space |
 | 🤗 **HF Space card** | https://huggingface.co/spaces/hirann/immunoorg-v3 |
-| 🎭 **War Room (inside demo)** | Open **/demo** → expand *Live LLM War Room* accordion |
+| 🎭 **War Room (Theme #1, inside `/demo`)** | Same page as episode demo — **Live LLM War Room** section |
+| 👩‍⚖️ **Judges — 60 s** | [`JUDGES_60_SECONDS.md`](./JUDGES_60_SECONDS.md) |
 | 📋 **Problem statement (Round 2 formal)** | [`PROBLEM_STATEMENT.md`](./PROBLEM_STATEMENT.md) |
 | 📝 **Mini-blog (source — paste into HF)** | [`BLOG_POST.md`](./BLOG_POST.md) |
 | ✍️ **Publish HF post + YouTube** | [`PUBLISH_HACKATHON.md`](./PUBLISH_HACKATHON.md) |

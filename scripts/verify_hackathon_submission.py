@@ -30,7 +30,7 @@ def main() -> int:
     if req.is_file() and "openenv-core" in req.read_text(encoding="utf-8"):
         _ok("requirements.txt includes openenv-core (Space Docker installs OpenEnv).")
     else:
-        _fail("requirements.txt should include openenv-core>=0.3.0")
+        _fail("requirements.txt should include openenv-core (PyPI latest 0.2.x)")
         code = 1
 
     if (REPO / "openenv.yaml").is_file():
