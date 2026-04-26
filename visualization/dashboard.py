@@ -399,19 +399,18 @@ def build_dashboard():
 
         # ── Control Panel ──────────────────────────────────────────────
         with gr.Row():
-        with gr.Column(scale=1):
+            with gr.Column(scale=1):
                 gr.Markdown("### 🎮 Control Panel")
                 difficulty = gr.Slider(1, 4, value=1, step=1, label="Difficulty Level")
                 reset_btn = gr.Button("🔄 Reset Episode", variant="primary")
-                
+
                 autonomous_mode = gr.Checkbox(label="🤖 Autonomous Patronus Mode", value=False)
-                
+
                 action_type = gr.Radio(["tactical", "strategic", "diagnostic"], value="tactical", label="Action Type")
                 action_name = gr.Dropdown(all_actions, label="Action", value="scan_logs")
                 target = gr.Textbox(label="Target (node/dept ID)", value="")
                 reasoning = gr.Textbox(label="Reasoning", lines=2, value="Investigating the situation.")
                 step_btn = gr.Button("▶️ Execute Action", variant="primary")
-
 
             with gr.Column(scale=2):
                 obs_display = gr.Markdown(label="Observation")
