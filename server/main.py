@@ -201,6 +201,14 @@ lets them succeed. Built for the OpenEnv Hackathon (India 2026).</p>
 <a class="cta" href="/demo">▶ Launch interactive demo</a>
 <a class="cta secondary" href="/docs">OpenAPI / FastAPI docs</a>
 
+<p class="sub" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px 16px;">
+  <strong>Hugging Face Hub page stuck on “Refreshing”?</strong> That is the Hub iframe, not your app.
+  Open this Space on its <strong>direct host</strong>:
+  <a href="https://hirann-immunoorg-v3.hf.space/">hirann-immunoorg-v3.hf.space</a>
+  (demo: <a href="https://hirann-immunoorg-v3.hf.space/demo">/demo</a>).
+  After the machine sleeps, the <strong>first</strong> load can take <strong>60–120s</strong>; then <code>/health</code> and the demo should respond.
+</p>
+
 <h3>OpenEnv API endpoints (Gym-style)</h3>
 <ul>
   <li><code>POST /reset</code> — start an episode</li>

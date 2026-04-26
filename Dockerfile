@@ -4,6 +4,8 @@ RUN useradd -m -u 1000 user
 USER user
 ENV PATH="/home/user/.local/bin:$PATH"
 ENV PYTHONPATH="/app"
+# Avoid Gradio startup calls to api.gradio.app (can slow or flake in container networks)
+ENV GRADIO_ANALYTICS_ENABLED=False
 
 WORKDIR /app
 

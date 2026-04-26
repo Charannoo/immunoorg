@@ -496,7 +496,7 @@ def build_demo() -> gr.Blocks:
         "migr %", "honeytokens", "attack vec", "directive", "reasoning",
     ]
 
-    with gr.Blocks(title="ImmunoOrg 2.0 — Live Demo") as demo:
+    with gr.Blocks(title="ImmunoOrg 2.0 — Live Demo", analytics_enabled=False) as demo:
         gr.Markdown(
             """
 # 🛡️ ImmunoOrg 2.0 — Live Demo
