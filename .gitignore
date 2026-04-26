@@ -24,13 +24,12 @@ training/output/
 training_runs/
 training/trajectories/
 
+# Local secrets (HF token, training trigger secret)
+.hf_token
+.training_secret
+
 # IDE / OS noise
 .idea/
 .vscode/
 .DS_Store
 Thumbs.db
-
-# Locally-stored secrets (never commit)
-.hf_token
-.training_secret
-
