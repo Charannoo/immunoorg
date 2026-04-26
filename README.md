@@ -13,7 +13,8 @@ pinned: false
 > cyber-attacks **and** restructure the organization that lets them
 > succeed. Built for the OpenEnv Hackathon (India 2026).
 
-**⏱ Crunch time?** Follow **[`SUBMIT_NOW.md`](./SUBMIT_NOW.md)** (Space + HF post + Colab GRPO plot — skip slow local CPU training).
+**⏱ Crunch time?** **[`WIN_30MIN.md`](./WIN_30MIN.md)** (fastest calm path) → then **[`SUBMIT_NOW.md`](./SUBMIT_NOW.md)** for the full checklist.  
+Run **`python scripts/make_hackathon_training_figure.py`** to create **`evidence_grpo_training.png`** in ~2 minutes (real env curve + Colab pointer).
 
 | Resource | Link |
 | --- | --- |
@@ -28,6 +29,7 @@ pinned: false
 | 📖 **Judges’ guide (official)** | [What judges look for](https://docs.google.com/document/d/1Odznuzwtb1ecDOm2t6ToZd4MuMXXfO6vWUGcxbC6mFs/edit?tab=t.0#bookmark=kix.2dz0x0nie3me) |
 | 🎬 **Video script (90 sec)** | [`VIDEO_SCRIPT.md`](./VIDEO_SCRIPT.md) |
 | 📔 **Training notebook (Colab + TRL GRPO)** | [Open in Colab](https://colab.research.google.com/github/Charannoo/immunoorg/blob/master/ImmunoOrg_Training_Colab.ipynb) · [`ImmunoOrg_Training_Colab.ipynb`](./ImmunoOrg_Training_Colab.ipynb) |
+| ⚡ **Win in ~30 min (start here if stressed)** | [`WIN_30MIN.md`](./WIN_30MIN.md) |
 | ⚡ **Deadline playbook (~5 h)** | [`SUBMIT_NOW.md`](./SUBMIT_NOW.md) |
 | 🖥️ **HPC training pipeline** | [`scripts/hpc/HANDOFF.md`](./scripts/hpc/HANDOFF.md) |
 | ✅ **Pre-submit checklist script** | `python scripts/verify_hackathon_submission.py` |

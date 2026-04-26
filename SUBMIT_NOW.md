@@ -1,6 +1,10 @@
 # Submit in the next ~5 hours — do this in order
 
-You do **not** need a finished local GRPO CPU run to submit. Judges need a **runnable Space**, **clear story**, **training path**, and **evidence**. You already have env rollout PNGs; add a **GRPO plot from Colab** if you can (45–60 min on T4).
+**Fastest calm path:** read **[`WIN_30MIN.md`](./WIN_30MIN.md)** first.
+
+You do **not** need a finished local GRPO CPU run to submit. Judges need a **runnable Space**, **clear story**, **training path**, and **evidence**.
+
+**Immediate:** `python scripts/make_hackathon_training_figure.py` → commits-ready **`evidence_grpo_training.png`** (real env rollout + where to get GRPO loss in Colab).
 
 ## 0. Hard prerequisites (30–45 min)
 
