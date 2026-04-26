@@ -34,6 +34,8 @@ from immunoorg.api_models import (
     StepResponse,
 )
 
+from server.war_room_routes import router as war_room_router
+
 
 # ─── Global environment instance ─────────────────────────────────────────────
 
@@ -142,6 +144,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(war_room_router)
 
 
 @app.get("/health")

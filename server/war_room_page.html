@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ImmunoOrg 2.0 — War Room</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --ciso: #f85149;
+      --devops: #d29922;
+      --arch: #388bfd;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    .wrap {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px 20px 48px;
+    }
+    h1 { font-size: 1.65rem; margin: 0 0 8px; font-weight: 650; }
+    .sub { color: var(--muted); margin: 0 0 24px; font-size: 0.95rem; }
+    /* Single-page stack: form, agents, cross-exam, verdict — one scroll */
+    .page-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .section-title {
+      margin: 0 0 10px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px;
+    }
+    .panel h2 {
+      margin: 0 0 14px;
+      font-size: 1.05rem;
+      font-weight: 600;
+    }
+    label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    input, textarea, select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #0d1117;
+      color: var(--text);
+      font-size: 0.95rem;
+      margin-bottom: 12px;
+    }
+    textarea { min-height: 100px; resize: vertical; }
+    button.primary {
+      width: 100%;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 8px;
+      background: #238636;
+      color: #fff;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    button.primary:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .err {
+      color: #f85149;
+      font-size: 0.9rem;
+      margin-top: 8px;
+      white-space: pre-wrap;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 0;
+    }
+    .cards .placeholder-wide {
+      grid-column: 1 / -1;
+      margin: 0;
+    }
+    @media (max-width: 900px) {
+      .cards { grid-template-columns: 1fr; }
+    }
+    .card {
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      padding: 14px;
+      background: #0d1117;
+      opacity: 0;
+      transform: translateY(12px);
+      animation: cardIn 0.45s ease forwards;
+    }
+    .card.agent-ciso { border-top: 3px solid var(--ciso); }
+    .card.agent-devops { border-top: 3px solid var(--devops); }
+    .card.agent-architect { border-top: 3px solid var(--arch); }
+    .card:nth-child(1) { animation-delay: 0.05s; }
+    .card:nth-child(2) { animation-delay: 0.2s; }
+    .card:nth-child(3) { animation-delay: 0.35s; }
+    .card.phase-xe:nth-child(1) { animation-delay: 0.5s; }
+    .card.phase-xe:nth-child(2) { animation-delay: 0.65s; }
+    .card.phase-xe:nth-child(3) { animation-delay: 0.8s; }
+    @keyframes cardIn {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .card h3 {
+      margin: 0 0 4px;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #21262d;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .badge-warn {
+      border-color: #d29922;
+      color: #d29922;
+      margin-left: 6px;
+    }
+    .role { font-size: 0.78rem; color: var(--muted); margin-bottom: 10px; }
+    .position {
+      font-size: 0.88rem;
+      color: var(--text);
+      max-height: 220px;
+      overflow: auto;
+      white-space: pre-wrap;
+    }
+    .skeleton {
+      min-height: 120px;
+      background: linear-gradient(90deg, #21262d 25%, #30363d 40%, #21262d 60%);
+      background-size: 200% 100%;
+      animation: sh 1.1s ease infinite;
+      border-radius: 8px;
+    }
+    @keyframes sh {
+      0% { background-position: 100% 0; }
+      100% { background-position: -100% 0; }
+    }
+    .xe-block { margin-top: 8px; }
+    .xe-row {
+      font-size: 0.9rem;
+      margin-bottom: 10px;
+      padding: 10px 12px;
+      background: #161b22;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .xe-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+    .arrow { color: var(--accent); font-weight: 700; }
+    details.xe-details { margin-top: 6px; font-size: 0.85rem; color: var(--muted); }
+    details.xe-details summary { cursor: pointer; color: var(--accent); }
+    .xe-full { margin-top: 8px; white-space: pre-wrap; color: var(--text); }
+    .verdict {
+      padding: 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: linear-gradient(135deg, #161b22 0%, #0d1117 100%);
+    }
+    .placeholder {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin: 0;
+      padding: 8px 0;
+    }
+    .verdict h2 { margin: 0 0 8px; font-size: 1.1rem; }
+    .verdict .status { font-size: 1.05rem; font-weight: 650; color: var(--accent); }
+    .votes { margin: 10px 0 0; padding-left: 18px; color: var(--muted); font-size: 0.9rem; }
+    .hint { font-size: 0.82rem; color: var(--muted); margin-top: 12px; }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>ImmunoOrg 2.0 — War Room</h1>
+    <p class="sub">
+      Three-agent adversarial debate: CISO, DevOps Lead, and Lead Architect.
+      Initial positions run in parallel, then cross-examination, then a vote — all on this page.
+    </p>
+    <div class="page-stack">
+      <div>
+        <p class="section-title">1 · Threat briefing</p>
+        <div class="panel">
+          <h2>Threat input</h2>
+          <form id="threat-form">
+            <label for="threat_type">Threat type</label>
+            <input id="threat_type" name="threat_type" required placeholder="e.g. SQL injection probe" />
+
+            <label for="severity">Severity (1–10)</label>
+            <input id="severity" name="severity" type="number" min="1" max="10" value="5" required />
+
+            <label for="source_ip">Source IP</label>
+            <input id="source_ip" name="source_ip" required placeholder="203.0.113.42" />
+
+            <label for="target_service">Target service</label>
+            <input id="target_service" name="target_service" required placeholder="api-payments" />
+
+            <label for="description">Description</label>
+            <textarea id="description" name="description" required placeholder="What was observed…"></textarea>
+
+            <label for="preference_injection">Preference injection (optional board directive)</label>
+            <input id="preference_injection" name="preference_injection" placeholder="Breaks deadlock → Architect wins" />
+
+            <button type="submit" class="primary" id="run-btn">Run debate</button>
+            <div class="err" id="form-err" hidden></div>
+            <p class="hint">
+              Requires <code>ANTHROPIC_API_KEY</code> on the server.
+              API: <code>POST /api/war-room</code>
+            </p>
+          </form>
+        </div>
+      </div>
+
+      <div>
+        <p class="section-title">2 · Initial positions</p>
+        <div class="cards" id="agent-cards"></div>
+      </div>
+
+      <div>
+        <p class="section-title">3 · Cross-examination</p>
+        <div class="panel xe-block">
+          <div id="xe-section"></div>
+        </div>
+      </div>
+
+      <div>
+        <p class="section-title">4 · Final verdict</p>
+        <div class="verdict" id="verdict-box">
+          <div class="status" id="verdict-status">—</div>
+          <p class="placeholder" id="verdict-placeholder">Run a debate to see consensus, board directive, or deadlock.</p>
+          <p id="verdict-action" hidden></p>
+          <ul class="votes" id="verdict-votes" hidden></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const API = "/api/war-room";
+
+    function el(tag, attrs, children) {
+      const n = document.createElement(tag);
+      if (attrs) Object.entries(attrs).forEach(([k, v]) => {
+        if (k === "class") n.className = v;
+        else if (k === "text") n.textContent = v;
+        else n.setAttribute(k, v);
+      });
+      (children || []).forEach(c => n.appendChild(c));
+      return n;
+    }
+
+    function renderAgents(agents, loading) {
+      const root = document.getElementById("agent-cards");
+      root.innerHTML = "";
+      const order = ["ciso", "devops", "architect"];
+      if (loading) {
+        order.forEach((id, i) => {
+          const card = el("div", { class: "card" });
+          card.appendChild(el("div", { class: "skeleton" }));
+          card.style.animationDelay = (0.05 + i * 0.12) + "s";
+          root.appendChild(card);
+        });
+        return;
+      }
+      if (!agents || agents.length === 0) {
+        root.appendChild(el("p", {
+          class: "placeholder placeholder-wide",
+          text: "Agent cards (CISO, DevOps, Architect) appear here after you run the debate.",
+        }));
+        return;
+      }
+      const byId = Object.fromEntries(agents.map(a => [a.agent_id, a]));
+      order.forEach((id, i) => {
+        const a = byId[id];
+        const card = el("div", { class: "card " + (a && a.color_class ? a.color_class : "") });
+        if (!a) {
+          card.appendChild(el("div", { class: "skeleton" }));
+          card.style.animationDelay = (0.05 + i * 0.12) + "s";
+          root.appendChild(card);
+          return;
+        }
+        const titleRow = el("h3", {}, []);
+        titleRow.appendChild(el("span", { text: a.display_name }));
+        const badge = el("span", { class: "badge", text: a.proposed_action || "—" });
+        titleRow.appendChild(badge);
+        if (a.hallucination_flags && a.hallucination_flags.length) {
+          titleRow.appendChild(el("span", { class: "badge badge-warn", text: "⚠️" }));
+        }
+        card.appendChild(titleRow);
+        card.appendChild(el("div", { class: "role", text: a.role || "" }));
+        card.appendChild(el("div", { class: "position", text: a.position_text || "" }));
+        card.style.animationDelay = (0.05 + i * 0.12) + "s";
+        root.appendChild(card);
+      });
+    }
+
+    function renderCrossExam(rows, loading) {
+      const root = document.getElementById("xe-section");
+      root.innerHTML = "";
+      if (loading) {
+        root.appendChild(el("div", { class: "skeleton", style: "min-height:80px" }));
+        return;
+      }
+      if (!rows || !rows.length) {
+        root.appendChild(el("p", { class: "placeholder", text: "Cross-examination rounds appear here after you run the debate." }));
+        return;
+      }
+      (rows || []).forEach((r, i) => {
+        const row = el("div", { class: "xe-row" });
+        const head = el("div", { class: "xe-head" });
+        head.appendChild(el("strong", { text: r.examiner_name }));
+        head.appendChild(el("span", { class: "arrow", text: "examines" }));
+        head.appendChild(el("strong", { text: r.target_name }));
+        if (r.hallucination_flags && r.hallucination_flags.length) {
+          head.appendChild(el("span", { class: "badge badge-warn", text: "⚠️ Hallucination risk" }));
+        }
+        row.appendChild(head);
+        const det = el("details", { class: "xe-details" });
+        det.appendChild(el("summary", { text: "Full challenge text" }));
+        const full = el("div", { class: "xe-full", text: r.text || "" });
+        det.appendChild(full);
+        if (r.hallucination_flags && r.hallucination_flags.length) {
+          det.appendChild(el("div", {
+            class: "xe-full",
+            text: "Flags: " + r.hallucination_flags.join(" · "),
+          }));
+        }
+        row.appendChild(det);
+        row.style.opacity = "0";
+        row.style.animation = "cardIn 0.4s ease forwards";
+        row.style.animationDelay = (0.45 + i * 0.12) + "s";
+        root.appendChild(row);
+      });
+    }
+
+    function renderVerdict(verdict) {
+      const st = document.getElementById("verdict-status");
+      const act = document.getElementById("verdict-action");
+      const votes = document.getElementById("verdict-votes");
+      const ph = document.getElementById("verdict-placeholder");
+      if (!verdict) {
+        st.textContent = "—";
+        ph.hidden = false;
+        act.hidden = true;
+        votes.hidden = true;
+        votes.innerHTML = "";
+        return;
+      }
+      ph.hidden = true;
+      act.hidden = false;
+      votes.hidden = false;
+      st.textContent = verdict.status || "";
+      act.textContent = verdict.consensus_action
+        ? ("Consensus action: " + verdict.consensus_action)
+        : "No single consensus action (deadlock without board directive).";
+      votes.innerHTML = "";
+      (verdict.votes_detail || []).forEach(v => {
+        const li = el("li", { text: v.agent + ": " + v.action });
+        votes.appendChild(li);
+      });
+    }
+
+    document.getElementById("threat-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const err = document.getElementById("form-err");
+      err.hidden = true;
+      const btn = document.getElementById("run-btn");
+      btn.disabled = true;
+      renderAgents(null, true);
+      renderCrossExam(null, true);
+      renderVerdict(null);
+
+      const body = {
+        threat_type: document.getElementById("threat_type").value.trim(),
+        severity: Number(document.getElementById("severity").value),
+        source_ip: document.getElementById("source_ip").value.trim(),
+        target_service: document.getElementById("target_service").value.trim(),
+        description: document.getElementById("description").value.trim(),
+        preference_injection: document.getElementById("preference_injection").value.trim() || null,
+      };
+
+      try {
+        const res = await fetch(API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.detail || data.message || res.statusText || "Request failed");
+        }
+        renderAgents(data.agents, false);
+        renderCrossExam(data.cross_examination, false);
+        renderVerdict(data.verdict);
+        document.getElementById("agent-cards").scrollIntoView({ behavior: "smooth", block: "start" });
+      } catch (x) {
+        err.textContent = String(x.message || x);
+        err.hidden = false;
+        renderAgents([], false);
+        renderCrossExam([], false);
+        renderVerdict(null);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    renderAgents([], false);
+  </script>
+</body>
+</html>
